@@ -7,7 +7,7 @@ import { Chip, colors } from '../../components/ui';
 import { ALL_CATEGORIES } from '../../core/categories';
 import type { ScoredDeal } from '../../core/scoring';
 import { STORES } from '../../core/stores';
-import { matchesKeyword } from '../../core/text';
+import { matchesSearch } from '../../core/text';
 import type { CategoryId, StoreId } from '../../core/types';
 import { useDeals } from '../../state/DealsContext';
 
@@ -46,7 +46,7 @@ export default function AllDealsScreen() {
           (s) =>
             (!store || s.deal.store === store) &&
             (!category || s.deal.category === category) &&
-            (!query.trim() || matchesKeyword(`${s.deal.title} ${s.deal.subtitle ?? ''}`, query)),
+            (!query.trim() || matchesSearch(`${s.deal.title} ${s.deal.subtitle ?? ''}`, query)),
         )
         .sort(COMPARE[sort]),
     [ranked, store, category, query, sort],

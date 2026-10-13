@@ -14,17 +14,35 @@ export function words(text: string): string[] {
   return n ? n.split(' ') : [];
 }
 
+/** Longest inflection ending accepted after a keyword: "kurczak" → "kurczakiem", not "kawa" → "kawałkami". */
+const MAX_ENDING = 3;
+/** "Ekspres do kawy", "Karma dla kota": the product is *for* the keyword, not the keyword itself. */
+const PURPOSE_WORDS = new Set(['do', 'dla']);
+
+function inflectionOf(word: string, keyword: string): boolean {
+  if (word.startsWith(keyword)) return word.length - keyword.length <= MAX_ENDING;
+  // "masło" → "masła": Polish often changes the last vowel.
+  const stem = keyword.slice(0, -1);
+  return keyword.length >= 5 && word.startsWith(stem) && word.length - stem.length <= MAX_ENDING;
+}
+
 /**
- * True when every word of `keyword` is a prefix of some word in `text`, so "kawa" matches
- * "Kawa mielona". Keywords of 5+ letters also match with the last letter dropped, so
- * "masło" matches "masła". Prefix matching handles Polish inflection at the cost of
- * occasional false hits ("kawa" also matches "kawałek").
+ * True when every word of `keyword` appears in `text` as itself or an inflected form, ignoring
+ * case and diacritics: "kawa" matches "Kawa mielona" and "kawy", "masło" matches "masła".
+ * Words right after "do"/"dla" don't count ("Przyprawa do kurczaka" is not chicken).
  */
 export function matchesKeyword(text: string, keyword: string): boolean {
   const kw = words(keyword);
   if (kw.length === 0) return false;
   const tw = words(text);
-  return kw.every((k) => tw.some((w) => w.startsWith(k) || (k.length >= 5 && w.startsWith(k.slice(0, -1)))));
+  return kw.every((k) => tw.some((w, i) => inflectionOf(w, k) && !(i > 0 && PURPOSE_WORDS.has(tw[i - 1]))));
+}
+
+/** Search-as-you-type: every typed word is a prefix of some word ("kurcz" finds "kurczakiem"). */
+export function matchesSearch(text: string, query: string): boolean {
+  const qw = words(query);
+  const tw = words(text);
+  return qw.length > 0 && qw.every((q) => tw.some((w) => w.startsWith(q)));
 }
 
 export function slugify(text: string): string {

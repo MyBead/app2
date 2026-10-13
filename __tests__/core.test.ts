@@ -1,7 +1,7 @@
 import { classify } from '../src/core/categories';
 import { discountFromLabel, effectiveDiscount, formatPrice, parsePrice } from '../src/core/price';
 import { isVisible, rankDeals, scoreDeal } from '../src/core/scoring';
-import { matchesKeyword, normalize } from '../src/core/text';
+import { matchesKeyword, matchesSearch, normalize } from '../src/core/text';
 import { DEFAULT_PREFERENCES, mergePreferences, type Deal, type Preferences } from '../src/core/types';
 import { demoDeals } from '../src/providers/demo';
 
@@ -31,6 +31,27 @@ describe('text', () => {
     expect(matchesKeyword('Herbata czarna', 'kawa')).toBe(false);
     expect(matchesKeyword('Kawa ziarnista', 'kawa ziarnista')).toBe(true);
     expect(matchesKeyword('Kawa mielona', 'kawa ziarnista')).toBe(false);
+  });
+});
+
+describe('keyword matching on real leaflet titles', () => {
+  it.each([
+    ['Kawa mielona Jacobs Krönung', 'kawa', true],
+    ['Filet z kurczaka', 'kurczak', true],
+    ['Bułka Kłos Tomcio Paluch z kurczakiem', 'kurczak', true],
+    ['Ciastka Sensations z kawałkami czekolady Milka', 'kawa', false],
+    ['Przyprawa do kurczaka złocista Kamis XXL', 'kurczak', false],
+    ['Ekspres do kawy', 'kawa', false],
+    ['Karma dla psów z kurczakiem', 'kurczak', true], // pets are filtered in scoring, not here
+  ])('%s ~ %s → %p', (title, keyword, expected) => {
+    expect(matchesKeyword(title, keyword)).toBe(expected);
+  });
+
+  it('search matches any prefix while typing', () => {
+    expect(matchesSearch('Bułka z kurczakiem', 'kurcz')).toBe(true);
+    expect(matchesSearch('Bułka z kurczakiem', 'kurczakiem bu')).toBe(true);
+    expect(matchesSearch('Bułka z kurczakiem', 'kawa')).toBe(false);
+    expect(matchesSearch('Bułka', '  ')).toBe(false);
   });
 });
 
