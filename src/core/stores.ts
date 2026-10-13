@@ -84,7 +84,8 @@ export const STORES: Record<StoreId, StoreInfo> = {
     website: 'https://www.euro.com.pl',
     loyaltyApp: 'aplikacja RTV Euro AGD',
     sourceUrls: [],
-    blixSlug: 'euro-rtv-agd',
+    // blix.pl redirects this to /sklep/euro-rtv-agd/, but leaflets carry data-brand-slug="rtv-euro-agd".
+    blixSlug: 'rtv-euro-agd',
   },
   mediaexpert: {
     id: 'mediaexpert',
