@@ -18,6 +18,12 @@ import { rankDeals } from '../src/core/scoring';
 
 /** Pages dumped by --pages, by group name (a store id or any label). */
 const CANDIDATES: Record<string, string[]> = {
+  euro: [
+    'https://www.euro.com.pl/promocje.bhtml',
+    'https://www.euro.com.pl/cms/promocje.bhtml',
+    'https://www.euro.com.pl/telefony-komorkowe.bhtml',
+    'https://blix.pl/sklep/euro-rtv-agd/',
+  ],
   oldprice: [
     'https://ding.pl/oferty',
     'https://blix.pl/produkt/rum-bacardi-carta-blanca,4431be06b',
@@ -80,6 +86,26 @@ async function probe(group: string, url: string) {
       `nuxt=${/__NUXT__|__NUXT_DATA__/.test(html)} json-scripts=${scripts.filter((a) => /application\/json/i.test(a)).length} ` +
       `embeddedJson=${embeddedJson(html).length} "zł"=${(html.match(/zł/g) ?? []).length}`,
   );
+
+  // Where do prices live inside embedded JSON? Print paths of objects with price-like keys.
+  const pricePaths: string[] = [];
+  const walk = (v: unknown, path: string, depth: number) => {
+    if (depth > 30 || pricePaths.length > 400 || typeof v !== 'object' || v === null) return;
+    if (Array.isArray(v)) return v.slice(0, 50).forEach((x, i) => walk(x, `${path}[${i < 3 ? i : '*'}]`, depth + 1));
+    const keys = Object.keys(v);
+    if (keys.some((k) => /price|cena/i.test(k)))
+      pricePaths.push(`${path.replace(/\[\d+\]/g, '[]')} :: ${JSON.stringify(v).slice(0, 400)}`);
+    for (const k of keys) walk((v as Record<string, unknown>)[k], `${path}.${k}`, depth + 1);
+  };
+  embeddedJson(html).forEach((doc, i) => walk(doc, `doc${i}`, 0));
+  const seenPaths = new Set<string>();
+  for (const line of pricePaths) {
+    const key = line.split(' :: ')[0];
+    if (seenPaths.has(key)) continue;
+    seenPaths.add(key);
+    console.log(`json price path: ${line}`);
+    if (seenPaths.size >= 12) break;
+  }
 
   const deals = extractDeals(html, 'lidl', res.url || url);
   console.log(`EXTRACTED ${deals.length} deals`);
