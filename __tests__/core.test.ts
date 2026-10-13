@@ -121,6 +121,10 @@ describe('classify', () => {
     ['Przyprawa do kurczaka złocista Kamis XXL', 'pantry'],
     ['Wódka Hlibny Dar', 'alcohol'],
     ['Bombonierka Merci', 'sweets'],
+    ['Zmywarka SPS2HKI58E Bosch', 'electronics'],
+    ['Tabletki do zmywarki Finish', 'household'],
+    ['Telewizor NanoCell Lg 55NANO81A6A 55" 4K', 'electronics'],
+    ['Kuchnia gazowo-elektryczna Beko FSE52321DBD', 'electronics'],
   ])('%s → %s', (title, category) => {
     expect(classify(title)).toBe(category);
   });
