@@ -5,6 +5,9 @@ import { categoryInfo } from '../core/categories';
 import { formatPrice } from '../core/price';
 import type { ScoredDeal } from '../core/scoring';
 import { STORES } from '../core/stores';
+import { useDeals } from '../state/DealsContext';
+import { useShoppingList } from '../state/ShoppingList';
+import { PriceInsightLine } from './PriceInsightLine';
 import { StoreBadge, colors } from './ui';
 
 export function formatDateRange(from?: string, to?: string): string | undefined {
@@ -19,6 +22,9 @@ export function DealCard({ item }: { item: ScoredDeal }) {
   const { deal, discount, hot, matchedKeywords } = item;
   const cat = categoryInfo(deal.category);
   const dates = formatDateRange(deal.validFrom, deal.validTo);
+  const { insightFor } = useDeals();
+  const list = useShoppingList();
+  const inList = list.hasDeal(deal.id);
 
   return (
     <Pressable
@@ -37,6 +43,17 @@ export function DealCard({ item }: { item: ScoredDeal }) {
           <StoreBadge store={deal.store} small />
           {hot ? <Text style={styles.hotTag}>🔥</Text> : null}
           {deal.requiresApp ? <Text style={styles.appTag}>📱 {STORES[deal.store].loyaltyApp}</Text> : null}
+          <View style={{ flex: 1 }} />
+          <Pressable
+            onPress={() => (inList ? undefined : list.addDeal(deal))}
+            hitSlop={10}
+            accessibilityLabel={inList ? 'Уже в списке покупок' : 'Добавить в список покупок'}
+            style={[styles.listButton, inList && styles.listButtonOn]}
+          >
+            <Text style={[styles.listButtonText, inList && styles.listButtonTextOn]}>
+              {inList ? '✓ в списке' : '+ в список'}
+            </Text>
+          </Pressable>
         </View>
         <Text style={styles.title} numberOfLines={2}>
           {deal.title}
@@ -52,6 +69,7 @@ export function DealCard({ item }: { item: ScoredDeal }) {
           {discount > 0 ? <Text style={styles.discount}>−{discount}%</Text> : null}
           {deal.promoLabel ? <Text style={styles.promo}>{deal.promoLabel}</Text> : null}
         </View>
+        <PriceInsightLine insight={insightFor(deal)} />
         <Text style={styles.meta} numberOfLines={1}>
           {[dates, matchedKeywords.length ? `★ ${matchedKeywords.join(', ')}` : undefined].filter(Boolean).join(' · ')}
         </Text>
@@ -77,6 +95,16 @@ const styles = StyleSheet.create({
   body: { flex: 1 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
   hotTag: { fontSize: 14 },
+  listButton: {
+    borderWidth: 1,
+    borderColor: colors.accent,
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  listButtonOn: { backgroundColor: colors.accentSoft, borderColor: colors.accentSoft },
+  listButtonText: { fontSize: 12, color: colors.accent, fontWeight: '600' },
+  listButtonTextOn: { color: colors.accent },
   appTag: { fontSize: 11, color: colors.muted },
   title: { fontSize: 15, fontWeight: '600', color: colors.text },
   subtitle: { fontSize: 13, color: colors.muted, marginTop: 1 },

@@ -1,8 +1,9 @@
-import type { StoreId } from './types';
+import type { StoreGroup, StoreId } from './types';
 
 export interface StoreInfo {
   id: StoreId;
   name: string;
+  group: StoreGroup;
   color: string;
   textColor: string;
   website: string;
@@ -16,6 +17,7 @@ export interface StoreInfo {
 export const STORES: Record<StoreId, StoreInfo> = {
   lidl: {
     id: 'lidl',
+    group: 'grocery',
     name: 'Lidl',
     color: '#0050AA',
     textColor: '#FFF000',
@@ -27,6 +29,7 @@ export const STORES: Record<StoreId, StoreInfo> = {
   },
   biedronka: {
     id: 'biedronka',
+    group: 'grocery',
     name: 'Biedronka',
     color: '#E30613',
     textColor: '#FFFFFF',
@@ -38,6 +41,7 @@ export const STORES: Record<StoreId, StoreInfo> = {
   },
   zabka: {
     id: 'zabka',
+    group: 'grocery',
     name: 'Żabka',
     color: '#00843D',
     textColor: '#FFFFFF',
@@ -48,6 +52,7 @@ export const STORES: Record<StoreId, StoreInfo> = {
   },
   kaufland: {
     id: 'kaufland',
+    group: 'grocery',
     name: 'Kaufland',
     color: '#E10915',
     textColor: '#FFFFFF',
@@ -57,6 +62,59 @@ export const STORES: Record<StoreId, StoreInfo> = {
     sourceUrls: [],
     blixSlug: 'kaufland',
   },
+  // Electronics chains: their own sites block automated requests (Cloudflare) or load offers
+  // with scripts, so offers come from their blix.pl leaflets.
+  mediamarkt: {
+    id: 'mediamarkt',
+    group: 'electronics',
+    name: 'MediaMarkt',
+    color: '#DF0000',
+    textColor: '#FFFFFF',
+    website: 'https://mediamarkt.pl',
+    loyaltyApp: 'myMediaMarkt',
+    sourceUrls: [],
+    blixSlug: 'media-markt',
+  },
+  euro: {
+    id: 'euro',
+    group: 'electronics',
+    name: 'RTV Euro AGD',
+    color: '#00843F',
+    textColor: '#FFFFFF',
+    website: 'https://www.euro.com.pl',
+    loyaltyApp: 'aplikacja RTV Euro AGD',
+    sourceUrls: [],
+    blixSlug: 'euro-rtv-agd',
+  },
+  mediaexpert: {
+    id: 'mediaexpert',
+    group: 'electronics',
+    name: 'Media Expert',
+    color: '#FFD200',
+    textColor: '#1B1D21',
+    website: 'https://www.mediaexpert.pl',
+    loyaltyApp: 'aplikacja Media Expert',
+    sourceUrls: [],
+    blixSlug: 'media-expert',
+  },
+  neonet: {
+    id: 'neonet',
+    group: 'electronics',
+    name: 'Neonet',
+    color: '#F26522',
+    textColor: '#FFFFFF',
+    website: 'https://www.neonet.pl',
+    loyaltyApp: 'aplikacja Neonet',
+    sourceUrls: [],
+    blixSlug: 'neonet',
+  },
 };
 
 export const STORE_IDS = Object.keys(STORES) as StoreId[];
+
+export const STORE_GROUPS: { id: StoreGroup; label: string; emoji: string }[] = [
+  { id: 'grocery', label: 'Продукты', emoji: '🛒' },
+  { id: 'electronics', label: 'Электроника', emoji: '📱' },
+];
+
+export const storesInGroup = (group: StoreGroup) => STORE_IDS.filter((id) => STORES[id].group === group);

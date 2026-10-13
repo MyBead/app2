@@ -4,7 +4,7 @@ import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View
 import { Chip, Section, StoreBadge, colors } from '../../components/ui';
 import { CATEGORIES } from '../../core/categories';
 import { EMPTY_NOTIFY_STATE } from '../../core/notify';
-import { STORE_IDS, STORES } from '../../core/stores';
+import { STORE_GROUPS, STORE_IDS, STORES, storesInGroup } from '../../core/stores';
 import { DEFAULT_PREFERENCES, type CategoryId, type NotificationPrefs, type StoreId } from '../../core/types';
 import { sourceUrls } from '../../providers';
 import { ensurePermission } from '../../services/notifications';
@@ -134,17 +134,24 @@ export default function SettingsScreen() {
   return (
     <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
       <Section title="Магазины" hint="Из каких сетей показывать акции.">
-        <View style={styles.wrap}>
-          {STORE_IDS.map((id) => (
-            <Chip
-              key={id}
-              label={STORES[id].name}
-              color={STORES[id].color}
-              selected={prefs.stores.includes(id)}
-              onPress={() => updatePrefs((p) => ({ ...p, stores: toggle(p.stores, id) }))}
-            />
-          ))}
-        </View>
+        {STORE_GROUPS.map((g) => (
+          <View key={g.id} style={{ marginBottom: 6 }}>
+            <Text style={styles.groupLabel}>
+              {g.emoji} {g.label}
+            </Text>
+            <View style={styles.wrap}>
+              {storesInGroup(g.id).map((id) => (
+                <Chip
+                  key={id}
+                  label={STORES[id].name}
+                  color={STORES[id].color}
+                  selected={prefs.stores.includes(id)}
+                  onPress={() => updatePrefs((p) => ({ ...p, stores: toggle(p.stores, id) }))}
+                />
+              ))}
+            </View>
+          </View>
+        ))}
       </Section>
 
       <Section
@@ -337,6 +344,7 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: { padding: 12, paddingBottom: 40 },
   wrap: { flexDirection: 'row', flexWrap: 'wrap' },
+  groupLabel: { fontSize: 14, fontWeight: '600', color: colors.muted, marginBottom: 6 },
   inputRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
   input: {
     borderWidth: 1,

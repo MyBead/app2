@@ -1,6 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import type { PriceHistory } from '../core/compare';
 import { EMPTY_NOTIFY_STATE, type NotifyState } from '../core/notify';
+import type { ListItem } from '../core/shoppingList';
 import { mergePreferences, type Preferences } from '../core/types';
 import type { LeafletCache, StoreResult } from '../providers';
 
@@ -9,6 +11,8 @@ const KEYS = {
   results: 'okazje/results/v1',
   notify: 'okazje/notify/v1',
   leaflets: 'okazje/leaflets/v1',
+  history: 'okazje/price-history/v1',
+  list: 'okazje/shopping-list/v1',
 };
 
 async function readJson<T>(key: string): Promise<T | null> {
@@ -33,3 +37,9 @@ export const saveNotifyState = (state: NotifyState) => writeJson(KEYS.notify, st
 
 export const loadLeafletCache = async () => (await readJson<LeafletCache>(KEYS.leaflets)) ?? {};
 export const saveLeafletCache = (cache: LeafletCache) => writeJson(KEYS.leaflets, cache);
+
+export const loadPriceHistory = async () => (await readJson<PriceHistory>(KEYS.history)) ?? {};
+export const savePriceHistory = (history: PriceHistory) => writeJson(KEYS.history, history);
+
+export const loadShoppingList = async () => (await readJson<ListItem[]>(KEYS.list)) ?? [];
+export const saveShoppingList = (items: ListItem[]) => writeJson(KEYS.list, items);

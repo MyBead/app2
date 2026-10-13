@@ -4,6 +4,7 @@ import { isVisible, rankDeals, scoreDeal } from '../src/core/scoring';
 import { matchesKeyword, matchesSearch, normalize } from '../src/core/text';
 import { DEFAULT_PREFERENCES, mergePreferences, type Deal, type Preferences } from '../src/core/types';
 import { demoDeals } from '../src/providers/demo';
+import { STORE_IDS } from '../src/core/stores';
 
 const NOW = new Date('2026-10-13T12:00:00');
 
@@ -182,12 +183,19 @@ describe('preferences', () => {
     expect(merged.stores).toEqual(DEFAULT_PREFERENCES.stores);
     expect(mergePreferences(null)).toBe(DEFAULT_PREFERENCES);
   });
+
+  it('turns on stores added in an update, but keeps stores the user switched off', () => {
+    const old = mergePreferences({ stores: ['lidl', 'zabka'] });
+    expect(old.stores).toEqual(['lidl', 'zabka', 'mediamarkt', 'euro', 'mediaexpert', 'neonet']);
+    const now = mergePreferences({ ...old, stores: ['lidl'] });
+    expect(now.stores).toEqual(['lidl']);
+  });
 });
 
 describe('demo data', () => {
-  it('covers all four stores with unique ids and current dates', () => {
+  it('covers every store with unique ids and current dates', () => {
     const deals = demoDeals(NOW);
-    expect(new Set(deals.map((d) => d.store))).toEqual(new Set(['lidl', 'biedronka', 'zabka', 'kaufland']));
+    expect(new Set(deals.map((d) => d.store))).toEqual(new Set(STORE_IDS));
     expect(new Set(deals.map((d) => d.id)).size).toBe(deals.length);
     expect(deals.every((d) => isVisible(d, prefs(), NOW))).toBe(true);
     expect(deals.filter((d) => d.category === 'other')).toEqual([]);

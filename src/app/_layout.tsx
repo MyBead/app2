@@ -8,6 +8,7 @@ import { ActivityIndicator, Platform, View } from 'react-native';
 
 import { colors } from '../components/ui';
 import { DealsProvider, useDealsMaybe } from '../state/DealsContext';
+import { ShoppingListProvider } from '../state/ShoppingList';
 
 function Gate() {
   const state = useDealsMaybe();
@@ -38,10 +39,12 @@ function Gate() {
     );
   }
   return (
-    <Stack screenOptions={{ contentStyle: { backgroundColor: colors.bg } }}>
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen name="deal/[id]" options={{ title: 'Акция', headerBackTitle: 'Назад' }} />
-    </Stack>
+    <ShoppingListProvider>
+      <Stack screenOptions={{ contentStyle: { backgroundColor: colors.bg } }}>
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="deal/[id]" options={{ title: 'Акция', headerBackTitle: 'Назад' }} />
+      </Stack>
+    </ShoppingListProvider>
   );
 }
 

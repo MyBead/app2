@@ -1,14 +1,17 @@
+import { recordPrices } from '../core/compare';
 import { EMPTY_NOTIFY_STATE, markNotified, markSeen, planNotification, type NotificationPlan } from '../core/notify';
-import { rankDeals } from '../core/scoring';
+import { isoDate, rankDeals } from '../core/scoring';
 import type { Preferences } from '../core/types';
 import { fetchAllDeals, pruneLeafletCache, type StoreResult } from '../providers';
 import { deliver, hasPermission } from './notifications';
 import {
   loadLeafletCache,
+  loadPriceHistory,
   loadNotifyState,
   loadPreferences,
   loadResults,
   saveLeafletCache,
+  savePriceHistory,
   saveNotifyState,
   saveResults,
 } from './storage';
@@ -29,6 +32,10 @@ export async function refreshDeals(prefs: Preferences): Promise<StoreResult[]> {
     return old ? { ...old, error: r.error } : r;
   });
   await saveResults(merged);
+  if (!prefs.useDemoData) {
+    const live = fresh.flatMap((r) => r.deals);
+    await savePriceHistory(recordPrices(await loadPriceHistory(), live, isoDate(new Date())));
+  }
   return merged;
 }
 

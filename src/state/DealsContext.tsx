@@ -1,12 +1,19 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
+import {
+  crossStorePrices,
+  priceInsight,
+  type OtherStorePrice,
+  type PriceHistory,
+  type PriceInsight,
+} from '../core/compare';
 import { rankDeals, type ScoredDeal } from '../core/scoring';
-import type { Preferences } from '../core/types';
+import type { Deal, Preferences } from '../core/types';
 import type { StoreResult } from '../providers';
 import { setBackgroundChecks } from '../services/backgroundTask';
 import { ensurePermission, setupNotificationChannel } from '../services/notifications';
 import { markHotDealsSeen, refreshDeals } from '../services/refresh';
-import { loadPreferences, loadResults, savePreferences } from '../services/storage';
+import { loadPreferences, loadPriceHistory, loadResults, savePreferences } from '../services/storage';
 
 interface DealsState {
   ready: boolean;
@@ -15,6 +22,12 @@ interface DealsState {
   ranked: ScoredDeal[];
   refreshing: boolean;
   lastError?: string;
+  /** All loaded deals by id (including ones hidden by filters). */
+  dealById: Map<string, Deal>;
+  /** How this deal's price compares: regular price, other chains or earlier prices. */
+  insightFor: (deal: Deal) => PriceInsight;
+  /** The same product in other chains right now, cheapest first. */
+  othersFor: (dealId: string) => OtherStorePrice[];
   refresh: () => Promise<void>;
   updatePrefs: (patch: Partial<Preferences> | ((p: Preferences) => Preferences)) => void;
 }
@@ -27,6 +40,7 @@ export function DealsProvider({ children }: { children: ReactNode }) {
   const [results, setResults] = useState<StoreResult[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [lastError, setLastError] = useState<string>();
+  const [history, setHistory] = useState<PriceHistory>({});
   const prefsRef = useRef<Preferences | null>(null);
 
   const refresh = useCallback(async () => {
@@ -37,6 +51,7 @@ export function DealsProvider({ children }: { children: ReactNode }) {
     try {
       const fresh = await refreshDeals(p);
       setResults(fresh);
+      setHistory(await loadPriceHistory());
       // The user is looking at the app, so these deals are already known — the background
       // check will only notify about ones that appear later.
       await markHotDealsSeen(fresh, p);
@@ -49,7 +64,8 @@ export function DealsProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     (async () => {
-      const [p, cached] = await Promise.all([loadPreferences(), loadResults()]);
+      const [p, cached, h] = await Promise.all([loadPreferences(), loadResults(), loadPriceHistory()]);
+      setHistory(h);
       prefsRef.current = p;
       setPrefs(p);
       setResults(cached);
@@ -98,9 +114,34 @@ export function DealsProvider({ children }: { children: ReactNode }) {
     [results, prefs],
   );
 
+  const allDeals = useMemo(() => results.flatMap((r) => r.deals), [results]);
+  const dealById = useMemo(() => new Map(allDeals.map((d) => [d.id, d])), [allDeals]);
+  const others = useMemo(() => crossStorePrices(allDeals), [allDeals]);
+  const insightFor = useCallback(
+    (deal: Deal) => priceInsight(deal, others.get(deal.id), history[deal.id]),
+    [others, history],
+  );
+
+  const othersFor = useCallback((dealId: string) => others.get(dealId) ?? [], [others]);
+
   const value = useMemo<DealsState | null>(
-    () => (prefs ? { ready, prefs, results, ranked, refreshing, lastError, refresh, updatePrefs } : null),
-    [ready, prefs, results, ranked, refreshing, lastError, refresh, updatePrefs],
+    () =>
+      prefs
+        ? {
+            ready,
+            prefs,
+            results,
+            ranked,
+            refreshing,
+            lastError,
+            dealById,
+            insightFor,
+            othersFor,
+            refresh,
+            updatePrefs,
+          }
+        : null,
+    [ready, prefs, results, ranked, refreshing, lastError, dealById, insightFor, othersFor, refresh, updatePrefs],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

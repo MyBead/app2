@@ -1,4 +1,6 @@
-export type StoreId = 'lidl' | 'biedronka' | 'zabka' | 'kaufland';
+export type StoreId = 'lidl' | 'biedronka' | 'zabka' | 'kaufland' | 'mediamarkt' | 'euro' | 'mediaexpert' | 'neonet';
+
+export type StoreGroup = 'grocery' | 'electronics';
 
 export type CategoryId =
   | 'meat'
@@ -15,6 +17,7 @@ export type CategoryId =
   | 'nonfood'
   | 'pets'
   | 'ready'
+  | 'electronics'
   | 'other';
 
 export interface Deal {
@@ -52,6 +55,8 @@ export interface NotificationPrefs {
 
 export interface Preferences {
   stores: StoreId[];
+  /** Stores the user has had the chance to toggle; stores added in app updates start enabled. */
+  knownStores: StoreId[];
   /** Favourite categories get a score boost (and can be the only ones notified). */
   favoriteCategories: CategoryId[];
   hiddenCategories: CategoryId[];
@@ -69,8 +74,20 @@ export interface Preferences {
   notifications: NotificationPrefs;
 }
 
+const ALL_STORE_IDS: StoreId[] = [
+  'lidl',
+  'biedronka',
+  'zabka',
+  'kaufland',
+  'mediamarkt',
+  'euro',
+  'mediaexpert',
+  'neonet',
+];
+
 export const DEFAULT_PREFERENCES: Preferences = {
-  stores: ['lidl', 'biedronka', 'zabka', 'kaufland'],
+  stores: ALL_STORE_IDS,
+  knownStores: ALL_STORE_IDS,
   favoriteCategories: [],
   hiddenCategories: [],
   keywords: [],
@@ -91,9 +108,14 @@ export const DEFAULT_PREFERENCES: Preferences = {
 /** Fills in fields added in newer versions so old saved preferences keep working. */
 export function mergePreferences(saved: Partial<Preferences> | null | undefined): Preferences {
   if (!saved) return DEFAULT_PREFERENCES;
+  // Preferences saved before `knownStores` existed covered only the first four chains.
+  const known = saved.knownStores ?? ALL_STORE_IDS.slice(0, 4);
+  const added = ALL_STORE_IDS.filter((s) => !known.includes(s));
   return {
     ...DEFAULT_PREFERENCES,
     ...saved,
+    stores: [...new Set([...(saved.stores ?? DEFAULT_PREFERENCES.stores), ...added])],
+    knownStores: ALL_STORE_IDS,
     customSourceUrls: { ...DEFAULT_PREFERENCES.customSourceUrls, ...saved.customSourceUrls },
     notifications: { ...DEFAULT_PREFERENCES.notifications, ...saved.notifications },
   };

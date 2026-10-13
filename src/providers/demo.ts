@@ -39,6 +39,12 @@ const ROWS: Row[] = [
   ['kaufland', 'Szampon Head & Shoulders', '400 ml', 14.99, 26.99, '-40% na drugi'],
   ['kaufland', 'Wino Carlo Rossi czerwone', '750 ml', 19.99, 27.99],
   ['kaufland', 'Jaja z wolnego wybiegu L', '10 szt.', 8.99, 12.49],
+  ['mediamarkt', 'Laptop Lenovo IdeaPad Slim 3 15"', '16 GB, 512 GB SSD', 1999, 2599],
+  ['mediamarkt', 'Słuchawki Sony WH-1000XM5', undefined, 1199, 1599],
+  ['euro', 'Telewizor Samsung 55" QLED', undefined, 2499, 3299],
+  ['euro', 'Odkurzacz pionowy Dreame R10', undefined, 699, 999],
+  ['mediaexpert', 'Smartfon Xiaomi Redmi Note 14', '8/256 GB', 999, 1299],
+  ['neonet', 'Ekspres do kawy DeLonghi Magnifica S', undefined, 1299, 1799],
 ];
 
 export function demoDeals(now = new Date()): Deal[] {
