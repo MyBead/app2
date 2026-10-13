@@ -1,0 +1,78 @@
+name: Android APK
+
+# Builds an installable APK on GitHub's servers — no computer or Expo account needed.
+# Each build is published as a GitHub Release, so the .apk can be downloaded straight from a phone.
+
+on:
+  push:
+    branches: ['**']
+    paths-ignore: ['**.md']
+  workflow_dispatch:
+
+concurrency:
+  group: apk-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      # Read by app.config.js: every build gets a higher versionCode, so it installs over the previous one.
+      BUILD_NUMBER: ${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typecheck, lint, tests
+        run: |
+          npm run typecheck
+          npm run lint
+          npm test -- --ci
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Generate native Android project
+        run: npx expo prebuild --platform android --no-install
+
+      # arm64 only: covers practically all current phones and halves the native build time.
+      - name: Build release APK
+        working-directory: android
+        run: ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a
+
+      - name: Name the APK
+        run: |
+          mkdir -p dist
+          cp android/app/build/outputs/apk/release/app-release.apk "dist/okazje-${BUILD_NUMBER}.apk"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: okazje-apk-${{ github.run_number }}
+          path: dist/*.apk
+          retention-days: 30
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
+          name: Okazje — сборка ${{ github.run_number }}
+          body: |
+            APK из ветки `${{ github.ref_name }}` (коммит ${{ github.sha }}).
+            Откройте эту страницу на телефоне и скачайте `okazje-${{ github.run_number }}.apk` в разделе Assets.
+          files: dist/*.apk
+          make_latest: true
