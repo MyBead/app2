@@ -1,16 +1,26 @@
 import { EMPTY_NOTIFY_STATE, markNotified, markSeen, planNotification, type NotificationPlan } from '../core/notify';
 import { rankDeals } from '../core/scoring';
 import type { Preferences } from '../core/types';
-import { fetchAllDeals, type StoreResult } from '../providers';
+import { fetchAllDeals, pruneLeafletCache, type StoreResult } from '../providers';
 import { deliver, hasPermission } from './notifications';
-import { loadNotifyState, loadPreferences, loadResults, saveNotifyState, saveResults } from './storage';
+import {
+  loadLeafletCache,
+  loadNotifyState,
+  loadPreferences,
+  loadResults,
+  saveLeafletCache,
+  saveNotifyState,
+  saveResults,
+} from './storage';
 
 /**
  * Loads fresh offers. A store that fails this time keeps its last good result, so a
  * flaky connection doesn't wipe the list.
  */
 export async function refreshDeals(prefs: Preferences): Promise<StoreResult[]> {
-  const [fresh, previous] = await Promise.all([fetchAllDeals(prefs), loadResults()]);
+  const [cache, previous] = await Promise.all([loadLeafletCache(), loadResults()]);
+  const fresh = await fetchAllDeals(prefs, cache);
+  await saveLeafletCache(pruneLeafletCache(cache));
   const merged = fresh.map((r) => {
     if (r.deals.length > 0) return r;
     const old = previous.find(

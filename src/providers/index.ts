@@ -1,7 +1,10 @@
+import { isoDate } from '../core/scoring';
 import { STORES } from '../core/stores';
 import type { Deal, Preferences, StoreId } from '../core/types';
+import { BLIX, blixLeaflets, blixOffers, leafletUrl, pickLeaflets } from './blix';
 import { demoDeals } from './demo';
-import { extractDeals } from './extract';
+import { extractDeals, toDeals } from './extract';
+import { zabkaOffers } from './zabka';
 
 export interface StoreResult {
   store: StoreId;
@@ -11,7 +14,13 @@ export interface StoreResult {
   fetchedAt: string;
 }
 
-const TIMEOUT_MS = 20_000;
+/**
+ * Parsed blix leaflets by `${store}:${leafletId}`. A leaflet never changes and its page weighs
+ * up to ~3 MB, so each one is downloaded once and kept until it expires.
+ */
+export type LeafletCache = Record<string, { end: string; deals: Deal[] }>;
+
+const TIMEOUT_MS = 30_000;
 const HEADERS = {
   // Shops serve the full page (with embedded offer data) to regular mobile browsers.
   'User-Agent':
@@ -37,29 +46,78 @@ export function sourceUrls(store: StoreId, prefs: Preferences): string[] {
   return custom ? [custom] : STORES[store].sourceUrls;
 }
 
-/** Reads every source page of one store; a page that fails doesn't sink the others. */
-export async function fetchStore(store: StoreId, urls: string[]): Promise<StoreResult> {
+/** Picks the parser for a shop page; the generic extractor is the fallback. */
+export function parsePage(html: string, store: StoreId, url: string): Deal[] {
+  if (/zabka\.pl/.test(url)) {
+    const deals = toDeals(zabkaOffers(html), store, url);
+    if (deals.length > 0) return deals;
+  }
+  return extractDeals(html, store, url);
+}
+
+/** Current leaflet offers of one chain from blix.pl; a leaflet that fails is reported, not fatal. */
+async function fetchBlix(store: StoreId, cache: LeafletCache, today: string, errors: string[]): Promise<Deal[]> {
+  const slug = STORES[store].blixSlug;
+  const leaflets = pickLeaflets(blixLeaflets(await fetchText(`${BLIX}/sklep/${slug}/`), slug), today);
+  if (leaflets.length === 0) throw new Error('нет действующих газеток');
+  const deals: Deal[] = [];
+  for (const leaflet of leaflets) {
+    const key = `${store}:${leaflet.id}`;
+    if (!cache[key]) {
+      const url = leafletUrl(slug, leaflet.id);
+      try {
+        const found = toDeals(blixOffers(await fetchText(url), slug, leaflet.id), store, url);
+        // An empty parse may be a temporary error page — don't remember it.
+        if (found.length > 0) cache[key] = { end: leaflet.end, deals: found };
+        else errors.push(`${url}: акций в газетке не найдено`);
+      } catch (e) {
+        errors.push(`${url}: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    }
+    deals.push(...(cache[key]?.deals ?? []));
+  }
+  return deals;
+}
+
+/** Reads every source of one store; a source that fails doesn't sink the others. */
+export async function fetchStore(
+  store: StoreId,
+  urls: string[],
+  cache: LeafletCache = {},
+  now = new Date(),
+): Promise<StoreResult> {
   const deals = new Map<string, Deal>();
   const errors: string[] = [];
+  const add = (found: Deal[]) => {
+    for (const d of found) if (!deals.has(d.id)) deals.set(d.id, d);
+  };
   for (const url of urls) {
     try {
-      const html = await fetchText(url);
-      const found = extractDeals(html, store, url);
+      const found = parsePage(await fetchText(url), store, url);
       if (found.length === 0) errors.push(`${url}: акций на странице не найдено`);
-      for (const d of found) if (!deals.has(d.id)) deals.set(d.id, d);
+      add(found);
     } catch (e) {
       errors.push(`${url}: ${e instanceof Error ? e.message : String(e)}`);
     }
   }
+  try {
+    add(await fetchBlix(store, cache, isoDate(now), errors));
+  } catch (e) {
+    errors.push(`blix.pl: ${e instanceof Error ? e.message : String(e)}`);
+  }
   return {
     store,
     deals: [...deals.values()],
-    error: deals.size === 0 ? errors.join('\n') || 'Нет данных' : undefined,
-    fetchedAt: new Date().toISOString(),
+    error: errors.length > 0 ? errors.join('\n') : undefined,
+    fetchedAt: now.toISOString(),
   };
 }
 
-export async function fetchAllDeals(prefs: Preferences, now = new Date()): Promise<StoreResult[]> {
+export async function fetchAllDeals(
+  prefs: Preferences,
+  cache: LeafletCache = {},
+  now = new Date(),
+): Promise<StoreResult[]> {
   if (prefs.useDemoData) {
     const all = demoDeals(now);
     return prefs.stores.map((store) => ({
@@ -68,5 +126,11 @@ export async function fetchAllDeals(prefs: Preferences, now = new Date()): Promi
       fetchedAt: now.toISOString(),
     }));
   }
-  return Promise.all(prefs.stores.map((store) => fetchStore(store, sourceUrls(store, prefs))));
+  return Promise.all(prefs.stores.map((store) => fetchStore(store, sourceUrls(store, prefs), cache, now)));
+}
+
+/** Drops leaflets that have ended. */
+export function pruneLeafletCache(cache: LeafletCache, now = new Date()): LeafletCache {
+  const today = isoDate(now);
+  return Object.fromEntries(Object.entries(cache).filter(([, v]) => v.end >= today));
 }

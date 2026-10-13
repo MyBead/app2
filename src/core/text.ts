@@ -31,15 +31,37 @@ export function slugify(text: string): string {
   return normalize(text).replace(/[%+]/g, '').replace(/\s+/g, '-').slice(0, 80);
 }
 
+const NAMED_ENTITIES: Record<string, string> = {
+  quot: '"',
+  apos: "'",
+  lt: '<',
+  gt: '>',
+  nbsp: ' ',
+  oacute: 'ó',
+  Oacute: 'Ó',
+  eacute: 'é',
+  aacute: 'á',
+  uuml: 'ü',
+  ouml: 'ö',
+  auml: 'ä',
+  ndash: '–',
+  mdash: '—',
+  hellip: '…',
+  bdquo: '„',
+  rdquo: '”',
+  ldquo: '“',
+  laquo: '«',
+  raquo: '»',
+  reg: '®',
+  trade: '™',
+  deg: '°',
+};
+
 export function decodeHtmlEntities(s: string): string {
   return s
-    .replace(/&quot;/g, '"')
-    .replace(/&#0?39;|&apos;/g, "'")
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&nbsp;/g, ' ')
     .replace(/&#(\d+);/g, (_, d) => String.fromCharCode(Number(d)))
     .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCharCode(parseInt(h, 16)))
+    .replace(/&([a-zA-Z]+);/g, (m, name: string) => NAMED_ENTITIES[name] ?? m)
     .replace(/&amp;/g, '&');
 }
 

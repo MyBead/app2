@@ -1,12 +1,17 @@
 /**
  * Diagnoses shop pages from a machine with normal internet access (run in GitHub Actions):
  * fetches candidate offer pages and prints what structure they have, so the extractor can be
- * adapted. Usage: npx tsx scripts/probe-sources.ts [store...]
+ * adapted. Usage: npx tsx scripts/probe-sources.ts [--pages] [store...]
+ * Without --pages it runs the app's own loading code end to end.
  */
 import { STORES } from '../src/core/stores';
 import { formatPrice } from '../src/core/price';
 import type { StoreId } from '../src/core/types';
 import { embeddedJson, extractDeals } from '../src/providers/extract';
+import { fetchStore, sourceUrls, type LeafletCache } from '../src/providers';
+import { categoryInfo } from '../src/core/categories';
+import { DEFAULT_PREFERENCES } from '../src/core/types';
+import { rankDeals } from '../src/core/scoring';
 
 const CANDIDATES: Record<StoreId, string[]> = {
   lidl: [],
@@ -117,10 +122,46 @@ async function probe(store: StoreId, url: string) {
   else console.log(`excerpt (body start):\n${html.slice(html.search(/<body/i), html.search(/<body/i) + 1500)}`);
 }
 
+/** Runs the app's real loading code against the live sites. */
+async function endToEnd(stores: StoreId[]) {
+  const cache: LeafletCache = {};
+  for (const store of stores) {
+    const started = Date.now();
+    const r = await fetchStore(store, sourceUrls(store, DEFAULT_PREFERENCES), cache);
+    console.log(`\n##### ${store}: ${r.deals.length} deals in ${((Date.now() - started) / 1000).toFixed(1)}s`);
+    if (r.error) console.log(`errors:\n${r.error}`);
+    const cats = top(
+      r.deals.map((d) => categoryInfo(d.category).label),
+      13,
+    );
+    console.log(`categories: ${cats.join(', ')}`);
+    const withOld = r.deals.filter((d) => d.oldPrice).length;
+    console.log(`with old price: ${withOld}, with app requirement: ${r.deals.filter((d) => d.requiresApp).length}`);
+    for (const d of r.deals.filter((_, i) => i % Math.max(1, Math.floor(r.deals.length / 12)) === 0).slice(0, 12)) {
+      console.log(
+        `  - ${d.title} | ${d.subtitle ?? ''} | ${formatPrice(d.price)} old=${formatPrice(d.oldPrice)} ${d.promoLabel ?? ''} ${d.validFrom ?? ''}..${d.validTo ?? ''} [${d.category}]`,
+      );
+    }
+    const prefs = { ...DEFAULT_PREFERENCES, keywords: ['kawa', 'masło', 'kurczak'] };
+    const hot = rankDeals(r.deals, prefs).filter((s) => s.hot);
+    console.log(
+      `hot with keywords kawa/masło/kurczak: ${hot.length}: ${hot
+        .slice(0, 8)
+        .map((s) => s.deal.title)
+        .join('; ')}`,
+    );
+  }
+  console.log(`\nleaflets cached: ${Object.keys(cache).join(', ')}`);
+}
+
 async function main() {
-  const wanted = (process.argv.slice(2) as StoreId[]).filter((s) => s in CANDIDATES);
-  for (const store of wanted.length ? wanted : (Object.keys(CANDIDATES) as StoreId[])) {
-    for (const url of CANDIDATES[store]) await probe(store, url);
+  const args = process.argv.slice(2);
+  const wanted = args.filter((a) => a in CANDIDATES) as StoreId[];
+  const stores = wanted.length ? wanted : (Object.keys(CANDIDATES) as StoreId[]);
+  if (args.includes('--pages')) {
+    for (const store of stores) for (const url of CANDIDATES[store]) await probe(store, url);
+  } else {
+    await endToEnd(stores);
   }
 }
 

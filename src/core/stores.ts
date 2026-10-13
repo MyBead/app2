@@ -7,8 +7,10 @@ export interface StoreInfo {
   textColor: string;
   website: string;
   loyaltyApp: string;
-  /** Pages scraped for offers, tried in order. Can be overridden in settings. */
+  /** Shop pages scraped for offers. Can be overridden in settings. */
   sourceUrls: string[];
+  /** Store slug on blix.pl, the leaflet aggregator (see providers/blix.ts). */
+  blixSlug: string;
 }
 
 export const STORES: Record<StoreId, StoreInfo> = {
@@ -19,7 +21,9 @@ export const STORES: Record<StoreId, StoreInfo> = {
     textColor: '#FFF000',
     website: 'https://www.lidl.pl',
     loyaltyApp: 'Lidl Plus',
-    sourceUrls: ['https://www.lidl.pl/c/promocje/s10008614', 'https://www.lidl.pl/'],
+    // The homepage carries the week's non-food offers with regular prices.
+    sourceUrls: ['https://www.lidl.pl/'],
+    blixSlug: 'lidl',
   },
   biedronka: {
     id: 'biedronka',
@@ -28,7 +32,9 @@ export const STORES: Record<StoreId, StoreInfo> = {
     textColor: '#FFFFFF',
     website: 'https://www.biedronka.pl',
     loyaltyApp: 'Moja Biedronka',
-    sourceUrls: ['https://www.biedronka.pl/pl/promocje', 'https://www.biedronka.pl/pl'],
+    // biedronka.pl publishes offers only as leaflet images.
+    sourceUrls: [],
+    blixSlug: 'biedronka',
   },
   zabka: {
     id: 'zabka',
@@ -37,7 +43,8 @@ export const STORES: Record<StoreId, StoreInfo> = {
     textColor: '#FFFFFF',
     website: 'https://www.zabka.pl',
     loyaltyApp: 'Żappka',
-    sourceUrls: ['https://www.zabka.pl/promocje'],
+    sourceUrls: ['https://www.zabka.pl/'],
+    blixSlug: 'zabka',
   },
   kaufland: {
     id: 'kaufland',
@@ -46,7 +53,9 @@ export const STORES: Record<StoreId, StoreInfo> = {
     textColor: '#FFFFFF',
     website: 'https://www.kaufland.pl',
     loyaltyApp: 'Kaufland Card',
-    sourceUrls: ['https://www.kaufland.pl/oferta/przeglad.html', 'https://www.kaufland.pl/oferta.html'],
+    // kaufland.pl answers automated requests with a Cloudflare challenge.
+    sourceUrls: [],
+    blixSlug: 'kaufland',
   },
 };
 

@@ -2,12 +2,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { EMPTY_NOTIFY_STATE, type NotifyState } from '../core/notify';
 import { mergePreferences, type Preferences } from '../core/types';
-import type { StoreResult } from '../providers';
+import type { LeafletCache, StoreResult } from '../providers';
 
 const KEYS = {
   prefs: 'okazje/preferences/v1',
   results: 'okazje/results/v1',
   notify: 'okazje/notify/v1',
+  leaflets: 'okazje/leaflets/v1',
 };
 
 async function readJson<T>(key: string): Promise<T | null> {
@@ -29,3 +30,6 @@ export const saveResults = (results: StoreResult[]) => writeJson(KEYS.results, r
 
 export const loadNotifyState = async () => (await readJson<NotifyState>(KEYS.notify)) ?? EMPTY_NOTIFY_STATE;
 export const saveNotifyState = (state: NotifyState) => writeJson(KEYS.notify, state);
+
+export const loadLeafletCache = async () => (await readJson<LeafletCache>(KEYS.leaflets)) ?? {};
+export const saveLeafletCache = (cache: LeafletCache) => writeJson(KEYS.leaflets, cache);

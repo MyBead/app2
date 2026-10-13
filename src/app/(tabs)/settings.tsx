@@ -278,7 +278,7 @@ export default function SettingsScreen() {
 
       <Section
         title="Источники данных"
-        hint="Акции читаются прямо со страниц магазинов. Если сайт поменяется, можно указать другой адрес страницы с акциями."
+        hint="Продуктовые акции берутся из газеток на blix.pl, плюс со страниц Lidl и Żabka (там видны и старые цены). Ниже можно указать свою страницу магазина с акциями."
       >
         <SwitchRow
           label="Демо-данные вместо сайтов"
@@ -298,7 +298,9 @@ export default function SettingsScreen() {
               {r?.error ? <Text style={styles.sourceError}>{r.error}</Text> : null}
               <TextInput
                 defaultValue={prefs.customSourceUrls[id] ?? ''}
-                placeholder={sourceUrls(id, { ...prefs, customSourceUrls: {} })[0]}
+                placeholder={
+                  sourceUrls(id, { ...prefs, customSourceUrls: {} })[0] ?? 'своя страница с акциями (необязательно)'
+                }
                 placeholderTextColor={colors.muted}
                 style={styles.input}
                 autoCapitalize="none"
