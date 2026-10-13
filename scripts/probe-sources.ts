@@ -9,27 +9,15 @@ import type { StoreId } from '../src/core/types';
 import { embeddedJson, extractDeals } from '../src/providers/extract';
 
 const CANDIDATES: Record<StoreId, string[]> = {
-  lidl: [...STORES.lidl.sourceUrls],
-  biedronka: [
-    'https://home.biedronka.pl/promocje/',
-    'https://www.biedronka.pl/pl/nowa-oferta',
-    'https://www.biedronka.pl/pl/oferta-z-karta-moja-biedronka',
-    'https://www.biedronka.pl/pl/promocja-nf',
-  ],
-  zabka: [
-    'https://www.zabka.pl/gazetka-promocyjna/',
-    'https://www.zabka.pl/gazetka-spozywcza/',
-    'https://www.zabka.pl/gazetka-weekendowa/',
-    'https://www.zabka.pl/akcje-promocyjne/',
-  ],
-  // kaufland.pl answers datacenter IPs with a Cloudflare challenge; try aggregators that list its offers.
+  lidl: ['https://blix.pl/sklep/lidl/'],
+  biedronka: ['https://blix.pl/sklep/biedronka/'],
+  zabka: ['https://blix.pl/sklep/zabka/', 'https://www.zabka.pl/'],
+  // kaufland.pl answers datacenter IPs with a Cloudflare challenge; blix.pl lists its offers.
   kaufland: [
-    'https://www.kaufland.pl/oferta/przeglad.html',
     'https://blix.pl/sklep/kaufland/',
-    'https://www.ding.pl/sklep/kaufland',
-    'https://www.gazetkipromocyjne.net/kaufland/',
-    'https://www.promoceny.pl/kaufland/',
-    'https://www.okazjum.pl/kaufland/',
+    'https://blix.pl/sklep/kaufland/gazetka/528900/',
+    'https://blix.pl/sklep/kaufland/oferty/',
+    'https://blix.pl/sklep/kaufland/produkty/',
   ],
 };
 
@@ -110,6 +98,18 @@ async function probe(store: StoreId, url: string) {
     (m) => m[1],
   );
   console.log(`offer links: ${top(links, 25).join(' | ')}`);
+
+  for (const marker of ['class="product ', 'class="product"', 'class="product-item"']) {
+    const at = html.indexOf(marker);
+    if (at >= 0) {
+      console.log(`tile sample (${marker}):\n${html.slice(Math.max(0, at - 200), at + 2500)}`);
+      break;
+    }
+  }
+  const tileLinks = [
+    ...html.matchAll(/href=["'](https:\/\/blix\.pl\/[^"']*(?:oferta|produkt|promocj)[^"']*)["']/gi),
+  ].map((m) => m[1]);
+  if (tileLinks.length) console.log(`blix offer links: ${top(tileLinks, 15).join(' | ')}`);
 
   const i = html.search(/\d+[,.]\d{2}\s*(?:zł|PLN)/);
   if (i >= 0) console.log(`excerpt around first price:\n${html.slice(Math.max(0, i - 1500), i + 700)}`);
