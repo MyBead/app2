@@ -1,9 +1,10 @@
 name: Probe shop pages
 
-# Diagnostics: prints how the shops' offer pages are structured, to keep the parsers working.
+# Live check: runs the app's loading code against the real sites whenever parsing code changes
+# (and, with --pages, dumps page structure for adapting parsers).
 on:
   push:
-    paths: ['scripts/probe-sources.ts', '.github/workflows/probe-sources.yml']
+    paths: ['scripts/probe-sources.ts', 'src/core/**', 'src/providers/**', '.github/workflows/probe-sources.yml']
   workflow_dispatch:
     inputs:
       stores:

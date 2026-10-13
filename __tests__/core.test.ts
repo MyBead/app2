@@ -107,6 +107,19 @@ describe('classify', () => {
     ['Szampon do włosów', 'cosmetics'],
     ['Patelnia 28 cm', 'nonfood'],
     ['Coś zupełnie innego', 'other'],
+    // Real leaflet titles that used to land in "other" or the wrong category:
+    ['Karma dla psów Dolina Noteci', 'pets'],
+    ['Sucha karma dla kotów Whiskas z kurczakiem', 'pets'],
+    ['Przekąska dla psów K-Classic', 'pets'],
+    ['Znicz Lilia bez wkładu', 'nonfood'],
+    ['Klocki LEGO 76475', 'nonfood'],
+    ['Nektar Bobo Frut jabłko-marchew', 'drinks'],
+    ['Kombucha BIO Dobra Karma', 'drinks'],
+    ['Sałatka lunchbox Gyros z kurczakiem Dobra Karma', 'ready'],
+    ['Edamame nasiona soi wasabi Vitasia Japanese Style', 'pantry'],
+    ['Przyprawa do kurczaka złocista Kamis XXL', 'pantry'],
+    ['Wódka Hlibny Dar', 'alcohol'],
+    ['Bombonierka Merci', 'sweets'],
   ])('%s → %s', (title, category) => {
     expect(classify(title)).toBe(category);
   });
@@ -128,6 +141,13 @@ describe('scoring', () => {
     expect(scoreDeal(deal({ price: 7, oldPrice: 10 }), p, NOW).hot).toBe(true); // 30%
     expect(scoreDeal(deal({ price: 8, oldPrice: 10 }), p, NOW).hot).toBe(false); // 20%
     expect(scoreDeal(deal({ title: 'Kawa ziarnista', price: 9, oldPrice: 10 }), p, NOW).hot).toBe(true);
+  });
+
+  it('ignores pet food when matching food keywords', () => {
+    const p = prefs({ keywords: ['kurczak'] });
+    const petFood = deal({ title: 'Karma dla kotów z kurczakiem', category: 'pets' });
+    expect(scoreDeal(petFood, p, NOW).hot).toBe(false);
+    expect(scoreDeal(petFood, prefs({ keywords: ['karma'] }), NOW).hot).toBe(true);
   });
 
   it('can restrict hot deals to favourite categories', () => {

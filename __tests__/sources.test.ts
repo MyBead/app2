@@ -22,9 +22,32 @@ describe('blix.pl', () => {
 
   it('picks leaflets valid today or starting within 3 days', () => {
     const leaflets = blixLeaflets(fixture('blix-store.html'), 'kaufland');
-    expect(pickLeaflets(leaflets, '2026-10-13').map((l) => l.id)).toEqual(['526170', '528900']);
+    expect(pickLeaflets(leaflets, '2026-10-13').map((l) => l.id)).toEqual(['528900', '526170']);
     expect(pickLeaflets(leaflets, '2026-10-11').map((l) => l.id)).toEqual(['526170']);
     expect(pickLeaflets(leaflets, '2026-10-22').map((l) => l.id)).toEqual([]);
+  });
+
+  it('prefers the main weekly leaflets over themed ones (real Kaufland list, 13.10)', () => {
+    const l = (id: string, start: string, end: string, name: string) => ({ id, start, end, name });
+    const kaufland = [
+      l('528900', '2026-10-15', '2026-10-21', 'Gazetka Tygodnia'),
+      l('528627', '2026-10-08', '2026-10-14', 'Gazetka Tygodnia'),
+      l('529029', '2026-10-15', '2026-11-04', 'Oferta Kaufland - drogeria'),
+      l('529011', '2026-10-15', '2026-10-28', 'Barek Kauflandu'),
+      l('528879', '2026-10-15', '2026-10-21', 'Oferta Kaufland - Znicze'),
+      l('528903', '2026-10-15', '2026-10-28', 'Oferta Kaufland - Non Food'),
+      l('528384', '2026-10-12', '2026-10-14', 'Mocny Start'),
+      l('527532', '2026-10-08', '2026-10-21', 'Oferta Kaufland - Non Food'),
+      l('527493', '2026-10-08', '2026-10-14', 'Oferta Kaufland - Znicze'),
+      l('526281', '2026-10-01', '2026-10-14', 'Barek Kauflandu'),
+      l('526170', '2026-10-01', '2026-10-14', 'Oferta Kaufland - Zwierzaki'),
+    ];
+    expect(pickLeaflets(kaufland, '2026-10-13', 3, 4).map((x) => x.id)).toEqual([
+      '528384',
+      '528627',
+      '528900',
+      '527493',
+    ]);
   });
 
   it('reads leaflet items with price, dates, image and a link to the leaflet page', () => {

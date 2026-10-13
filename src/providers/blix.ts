@@ -62,14 +62,23 @@ export function blixLeaflets(html: string, slug: string): BlixLeaflet[] {
   return [...found.values()];
 }
 
-/** Leaflets valid today or starting within `aheadDays`, soonest first. */
-export function pickLeaflets(leaflets: BlixLeaflet[], today: string, aheadDays = 3, max = 4): BlixLeaflet[] {
+/** The chains' main weekly leaflets, as opposed to themed ones (alcohol, candles, pets…). */
+const MAIN_LEAFLET =
+  /od poniedzia|od czwartku|tygodni|gazetka|spo[żz]ywcz|oszcz[ęe]dno|festiwal|mocny start|rewolucja/i;
+
+/**
+ * Leaflets valid today or starting within `aheadDays`. Main leaflets go first, then the
+ * freshest; upcoming ones after current ones. Parsed leaflets are cached, so `max` mostly
+ * bounds the first download.
+ */
+export function pickLeaflets(leaflets: BlixLeaflet[], today: string, aheadDays = 3, max = 8): BlixLeaflet[] {
   const horizon = new Date(`${today}T12:00:00`);
   horizon.setDate(horizon.getDate() + aheadDays);
   const last = horizon.toISOString().slice(0, 10);
+  const rank = (l: BlixLeaflet) => (MAIN_LEAFLET.test(l.name) ? 0 : 2) + (l.start <= today ? 0 : 1);
   return leaflets
     .filter((l) => l.end >= today && l.start <= last)
-    .sort((a, b) => a.start.localeCompare(b.start) || a.id.localeCompare(b.id))
+    .sort((a, b) => rank(a) - rank(b) || b.start.localeCompare(a.start) || a.id.localeCompare(b.id))
     .slice(0, max);
 }
 

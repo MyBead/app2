@@ -13,6 +13,8 @@ export type CategoryId =
   | 'household'
   | 'cosmetics'
   | 'nonfood'
+  | 'pets'
+  | 'ready'
   | 'other';
 
 export interface Deal {

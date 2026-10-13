@@ -1,3 +1,4 @@
+import { classify } from './categories';
 import { effectiveDiscount } from './price';
 import { matchesKeyword } from './text';
 import type { Deal, Preferences } from './types';
@@ -29,7 +30,10 @@ export function isVisible(deal: Deal, prefs: Preferences, now = new Date()): boo
 export function scoreDeal(deal: Deal, prefs: Preferences, now = new Date()): ScoredDeal {
   const discount = effectiveDiscount(deal);
   const text = dealText(deal);
-  const matchedKeywords = prefs.keywords.filter((k) => matchesKeyword(text, k));
+  // "kurczak" shouldn't flag "Karma dla psów z kurczakiem" unless the user is after pet food.
+  const matchedKeywords = prefs.keywords.filter(
+    (k) => matchesKeyword(text, k) && (deal.category !== 'pets' || classify(k) === 'pets'),
+  );
   const favoriteCategory = prefs.favoriteCategories.includes(deal.category);
 
   let score = discount;
