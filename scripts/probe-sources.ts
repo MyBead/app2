@@ -16,11 +16,30 @@ import { categoryInfo } from '../src/core/categories';
 import { DEFAULT_PREFERENCES } from '../src/core/types';
 import { rankDeals } from '../src/core/scoring';
 
-const CANDIDATES: Record<StoreId, string[]> = {
-  lidl: [],
-  biedronka: ['https://blix.pl/sklep/biedronka/'],
-  zabka: [],
-  kaufland: ['https://blix.pl/sklep/kaufland/', 'https://blix.pl/sklep/kaufland/gazetka/528900/'],
+/** Pages dumped by --pages, by group name (a store id or any label). */
+const CANDIDATES: Record<string, string[]> = {
+  oldprice: [
+    'https://ding.pl/oferty',
+    'https://blix.pl/produkt/rum-bacardi-carta-blanca,4431be06b',
+    'https://www.gazetki.pl/',
+  ],
+  electronics_blix: [
+    'https://blix.pl/sklep/media-expert/',
+    'https://blix.pl/sklep/rtv-euro-agd/',
+    'https://blix.pl/sklep/media-markt/',
+    'https://blix.pl/sklep/neonet/',
+    'https://blix.pl/sklep/x-kom/',
+  ],
+  electronics_sites: [
+    'https://www.x-kom.pl/goracy_strzal',
+    'https://www.x-kom.pl/promocje',
+    'https://www.mediaexpert.pl/promocje',
+    'https://www.euro.com.pl/promocje.bhtml',
+    'https://mediamarkt.pl/pl/promotions.html',
+    'https://www.neonet.pl/promocje.html',
+    'https://www.morele.net/promocje/',
+    'https://www.komputronik.pl/promotions/',
+  ],
 };
 
 const HEADERS = {
@@ -41,8 +60,8 @@ const top = (items: string[], n: number) => {
 
 const oneLine = (s: string) => s.replace(/\s+/g, ' ').trim();
 
-async function probe(store: StoreId, url: string) {
-  console.log(`\n===== ${store} ${url}`);
+async function probe(group: string, url: string) {
+  console.log(`\n===== ${group} ${url}`);
   let res: Response;
   try {
     res = await fetch(url, { headers: HEADERS, redirect: 'follow', signal: AbortSignal.timeout(25_000) });
@@ -62,7 +81,7 @@ async function probe(store: StoreId, url: string) {
       `embeddedJson=${embeddedJson(html).length} "zł"=${(html.match(/zł/g) ?? []).length}`,
   );
 
-  const deals = extractDeals(html, store, res.url || url);
+  const deals = extractDeals(html, 'lidl', res.url || url);
   console.log(`EXTRACTED ${deals.length} deals`);
   for (const d of deals.slice(0, 8)) {
     console.log(
@@ -166,13 +185,15 @@ async function endToEnd(stores: StoreId[]) {
 
 async function main() {
   const args = process.argv.slice(2);
-  const wanted = args.filter((a) => a in CANDIDATES) as StoreId[];
-  const stores = wanted.length ? wanted : (Object.keys(CANDIDATES) as StoreId[]);
   if (args.includes('--pages')) {
-    for (const store of stores) for (const url of CANDIDATES[store]) await probe(store, url);
-  } else {
-    await endToEnd(stores);
+    const groups = args.filter((a) => a in CANDIDATES);
+    for (const g of groups.length ? groups : Object.keys(CANDIDATES))
+      for (const url of CANDIDATES[g]) await probe(g, url);
+    for (const url of args.filter((a) => /^https?:/.test(a))) await probe('url', url);
+    return;
   }
+  const wanted = args.filter((a) => a in STORES) as StoreId[];
+  await endToEnd(wanted.length ? wanted : (Object.keys(STORES) as StoreId[]));
 }
 
 main();

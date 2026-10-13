@@ -7,8 +7,8 @@ on:
     paths: ['scripts/probe-sources.ts', 'src/core/**', 'src/providers/**', '.github/workflows/probe-sources.yml']
   workflow_dispatch:
     inputs:
-      stores:
-        description: 'Stores to probe (space separated, empty = all)'
+      args:
+        description: 'Arguments, e.g. "--pages electronics_blix" or "--pages https://…" (empty = live check of all stores)'
         required: false
         default: ''
 
@@ -24,4 +24,7 @@ jobs:
           cache: npm
       - run: npm ci
       # Lidl sends very large headers; Node's default limit rejects them.
-      - run: NODE_OPTIONS=--max-http-header-size=262144 npx tsx scripts/probe-sources.ts ${{ github.event.inputs.stores || 'biedronka zabka kaufland lidl' }}
+      # Passed through env (not interpolated into the script) and split into words on purpose.
+      - run: NODE_OPTIONS=--max-http-header-size=262144 npx tsx scripts/probe-sources.ts $PROBE_ARGS
+        env:
+          PROBE_ARGS: ${{ github.event.inputs.args }}
