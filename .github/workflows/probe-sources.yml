@@ -1,0 +1,25 @@
+name: Probe shop pages
+
+# Diagnostics: prints how the shops' offer pages are structured, to keep the parsers working.
+on:
+  push:
+    paths: ['scripts/probe-sources.ts', '.github/workflows/probe-sources.yml']
+  workflow_dispatch:
+    inputs:
+      stores:
+        description: 'Stores to probe (space separated, empty = all)'
+        required: false
+        default: ''
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx tsx scripts/probe-sources.ts ${{ github.event.inputs.stores || 'biedronka zabka kaufland lidl' }}
