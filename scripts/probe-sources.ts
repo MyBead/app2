@@ -11,16 +11,25 @@ import { embeddedJson, extractDeals } from '../src/providers/extract';
 const CANDIDATES: Record<StoreId, string[]> = {
   lidl: [...STORES.lidl.sourceUrls],
   biedronka: [
-    ...STORES.biedronka.sourceUrls,
-    'https://www.biedronka.pl/pl/oferta',
-    'https://www.biedronka.pl/pl/gazetki',
-    'https://www.biedronka.pl/pl/okazje-tygodnia',
+    'https://home.biedronka.pl/promocje/',
+    'https://www.biedronka.pl/pl/nowa-oferta',
+    'https://www.biedronka.pl/pl/oferta-z-karta-moja-biedronka',
+    'https://www.biedronka.pl/pl/promocja-nf',
   ],
-  zabka: [...STORES.zabka.sourceUrls, 'https://www.zabka.pl/', 'https://www.zabka.pl/oferta'],
+  zabka: [
+    'https://www.zabka.pl/gazetka-promocyjna/',
+    'https://www.zabka.pl/gazetka-spozywcza/',
+    'https://www.zabka.pl/gazetka-weekendowa/',
+    'https://www.zabka.pl/akcje-promocyjne/',
+  ],
+  // kaufland.pl answers datacenter IPs with a Cloudflare challenge; try aggregators that list its offers.
   kaufland: [
-    ...STORES.kaufland.sourceUrls,
-    'https://www.kaufland.pl/oferta/aktualny-tydzien.html',
-    'https://www.kaufland.pl/',
+    'https://www.kaufland.pl/oferta/przeglad.html',
+    'https://blix.pl/sklep/kaufland/',
+    'https://www.ding.pl/sklep/kaufland',
+    'https://www.gazetkipromocyjne.net/kaufland/',
+    'https://www.promoceny.pl/kaufland/',
+    'https://www.okazjum.pl/kaufland/',
   ],
 };
 
