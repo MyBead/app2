@@ -9,6 +9,9 @@ import { formatPrice } from '../src/core/price';
 import type { StoreId } from '../src/core/types';
 import { embeddedJson, extractDeals } from '../src/providers/extract';
 import { fetchStore, sourceUrls, type LeafletCache } from '../src/providers';
+import { BLIX, blixLeaflets, pickLeaflets } from '../src/providers/blix';
+import { isoDate } from '../src/core/scoring';
+import { normalize } from '../src/core/text';
 import { categoryInfo } from '../src/core/categories';
 import { DEFAULT_PREFERENCES } from '../src/core/types';
 import { rankDeals } from '../src/core/scoring';
@@ -126,6 +129,11 @@ async function probe(store: StoreId, url: string) {
 async function endToEnd(stores: StoreId[]) {
   const cache: LeafletCache = {};
   for (const store of stores) {
+    const storeHtml = await (await fetch(`${BLIX}/sklep/${STORES[store].blixSlug}/`, { headers: HEADERS })).text();
+    const leaflets = blixLeaflets(storeHtml, STORES[store].blixSlug);
+    const picked = new Set(pickLeaflets(leaflets, isoDate(new Date())).map((l) => l.id));
+    console.log(`\nleaflets of ${store}:`);
+    for (const l of leaflets) console.log(`  ${picked.has(l.id) ? '*' : ' '} ${l.id} ${l.start}..${l.end} ${l.name}`);
     const started = Date.now();
     const r = await fetchStore(store, sourceUrls(store, DEFAULT_PREFERENCES), cache);
     console.log(`\n##### ${store}: ${r.deals.length} deals in ${((Date.now() - started) / 1000).toFixed(1)}s`);
@@ -142,6 +150,8 @@ async function endToEnd(stores: StoreId[]) {
         `  - ${d.title} | ${d.subtitle ?? ''} | ${formatPrice(d.price)} old=${formatPrice(d.oldPrice)} ${d.promoLabel ?? ''} ${d.validFrom ?? ''}..${d.validTo ?? ''} [${d.category}]`,
       );
     }
+    const otherWords = r.deals.filter((d) => d.category === 'other').map((d) => normalize(d.title).split(' ')[0]);
+    console.log(`'other' first words: ${top(otherWords, 70).join(', ')}`);
     const prefs = { ...DEFAULT_PREFERENCES, keywords: ['kawa', 'masło', 'kurczak'] };
     const hot = rankDeals(r.deals, prefs).filter((s) => s.hot);
     console.log(
