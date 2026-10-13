@@ -9,16 +9,10 @@ import type { StoreId } from '../src/core/types';
 import { embeddedJson, extractDeals } from '../src/providers/extract';
 
 const CANDIDATES: Record<StoreId, string[]> = {
-  lidl: ['https://blix.pl/sklep/lidl/'],
+  lidl: [],
   biedronka: ['https://blix.pl/sklep/biedronka/'],
-  zabka: ['https://blix.pl/sklep/zabka/', 'https://www.zabka.pl/'],
-  // kaufland.pl answers datacenter IPs with a Cloudflare challenge; blix.pl lists its offers.
-  kaufland: [
-    'https://blix.pl/sklep/kaufland/',
-    'https://blix.pl/sklep/kaufland/gazetka/528900/',
-    'https://blix.pl/sklep/kaufland/oferty/',
-    'https://blix.pl/sklep/kaufland/produkty/',
-  ],
+  zabka: [],
+  kaufland: ['https://blix.pl/sklep/kaufland/', 'https://blix.pl/sklep/kaufland/gazetka/528900/'],
 };
 
 const HEADERS = {
@@ -99,6 +93,13 @@ async function probe(store: StoreId, url: string) {
   );
   console.log(`offer links: ${top(links, 25).join(' | ')}`);
 
+  for (const re of [/<[^>]*class="offer[ "][\s\S]{0,2500}/g, /<[^>]*data-leaflet-id[^>]*>[\s\S]{0,600}/g]) {
+    const samples = [...html.matchAll(re)];
+    console.log(`${re.source.slice(0, 30)}: ${samples.length} matches`);
+    for (const k of [0, 1, Math.floor(samples.length / 2), samples.length - 1]) {
+      if (samples[k]) console.log(`--- sample #${k}\n${samples[k][0]}`);
+    }
+  }
   for (const marker of ['class="product ', 'class="product"', 'class="product-item"']) {
     const at = html.indexOf(marker);
     if (at >= 0) {
