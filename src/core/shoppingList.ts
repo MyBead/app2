@@ -70,6 +70,10 @@ export interface TripOptions {
   maxStores: number | null;
   /** Only these stores; empty = every enabled store. */
   allowedStores: StoreId[];
+  /** Last "near me" search: nearest shop per chain, for display. */
+  nearby?: { store: StoreId; distance: number; name: string }[];
+  /** Radius of that search, metres. */
+  nearbyRadius?: number;
 }
 
 export const DEFAULT_TRIP: TripOptions = { maxStores: null, allowedStores: [] };

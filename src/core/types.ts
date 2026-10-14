@@ -1,6 +1,30 @@
-export type StoreId = 'lidl' | 'biedronka' | 'zabka' | 'kaufland' | 'mediamarkt' | 'euro' | 'mediaexpert' | 'neonet';
+export type StoreId =
+  | 'lidl'
+  | 'biedronka'
+  | 'zabka'
+  | 'kaufland'
+  | 'mediamarkt'
+  | 'euro'
+  | 'mediaexpert'
+  | 'neonet'
+  | 'aldi'
+  | 'carrefour'
+  | 'netto'
+  | 'dino'
+  | 'auchan'
+  | 'intermarche'
+  | 'polomarket'
+  | 'stokrotka'
+  | 'lewiatan'
+  | 'rossmann'
+  | 'hebe'
+  | 'pepco'
+  | 'action'
+  | 'castorama'
+  | 'leroymerlin'
+  | 'obi';
 
-export type StoreGroup = 'grocery' | 'electronics';
+export type StoreGroup = 'grocery' | 'electronics' | 'drugstore' | 'home';
 
 export type CategoryId =
   | 'meat'
@@ -76,7 +100,8 @@ export interface Preferences {
   notifications: NotificationPrefs;
 }
 
-const ALL_STORE_IDS: StoreId[] = [
+/** Enabled out of the box. */
+const DEFAULT_STORE_IDS: StoreId[] = [
   'lidl',
   'biedronka',
   'zabka',
@@ -87,8 +112,30 @@ const ALL_STORE_IDS: StoreId[] = [
   'neonet',
 ];
 
+/** Opt-in chains (each adds several leaflets to download). */
+const EXTRA_STORE_IDS: StoreId[] = [
+  'aldi',
+  'carrefour',
+  'netto',
+  'dino',
+  'auchan',
+  'intermarche',
+  'polomarket',
+  'stokrotka',
+  'lewiatan',
+  'rossmann',
+  'hebe',
+  'pepco',
+  'action',
+  'castorama',
+  'leroymerlin',
+  'obi',
+];
+
+const ALL_STORE_IDS = [...DEFAULT_STORE_IDS, ...EXTRA_STORE_IDS];
+
 export const DEFAULT_PREFERENCES: Preferences = {
-  stores: ALL_STORE_IDS,
+  stores: DEFAULT_STORE_IDS,
   knownStores: ALL_STORE_IDS,
   favoriteCategories: [],
   hiddenCategories: [],
@@ -112,8 +159,9 @@ export const DEFAULT_PREFERENCES: Preferences = {
 export function mergePreferences(saved: Partial<Preferences> | null | undefined): Preferences {
   if (!saved) return DEFAULT_PREFERENCES;
   // Preferences saved before `knownStores` existed covered only the first four chains.
-  const known = saved.knownStores ?? ALL_STORE_IDS.slice(0, 4);
-  const added = ALL_STORE_IDS.filter((s) => !known.includes(s));
+  const known = saved.knownStores ?? DEFAULT_STORE_IDS.slice(0, 4);
+  // New default chains switch on for existing users; opt-in chains wait to be enabled.
+  const added = DEFAULT_STORE_IDS.filter((s) => !known.includes(s));
   return {
     ...DEFAULT_PREFERENCES,
     ...saved,

@@ -10,6 +10,8 @@ import { formatPrice } from '../../core/price';
 import { buildShareText, parseListText, savedThisMonth, type ItemPlan } from '../../core/shoppingList';
 import { STORES } from '../../core/stores';
 import { formatUnitPrice, unitPrice } from '../../core/units';
+import { formatDistance } from '../../core/nearby';
+import { findNearbyStores } from '../../services/nearby';
 import { useDeals } from '../../state/DealsContext';
 import { useShoppingList } from '../../state/ShoppingList';
 
@@ -104,6 +106,53 @@ function PickerModal({ plan, onClose }: { plan: ItemPlan | null; onClose: () => 
   );
 }
 
+/** "Near me": keep only chains with a shop within the radius (OpenStreetMap). */
+function NearMe() {
+  const { trip, setTrip } = useShoppingList();
+  const { prefs } = useDeals();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string>();
+  const search = async (radius: number) => {
+    setBusy(true);
+    setError(undefined);
+    try {
+      const shops = await findNearbyStores(prefs.stores, radius);
+      setTrip({
+        ...trip,
+        allowedStores: shops.map((s) => s.store),
+        nearby: shops.map((s) => ({ store: s.store, distance: s.distance, name: s.name })),
+        nearbyRadius: radius,
+      });
+      if (shops.length === 0) setError('Рядом не найдено магазинов включённых сетей — увеличьте радиус.');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <View style={{ marginBottom: 6 }}>
+      <Text style={styles.tripLabel}>📍 Рядом со мной</Text>
+      <View style={styles.wrap}>
+        {[1000, 2000, 5000].map((r) => (
+          <Chip
+            key={r}
+            label={busy ? '…' : `до ${r / 1000} км`}
+            selected={trip.nearbyRadius === r && trip.allowedStores.length > 0}
+            onPress={() => !busy && search(r)}
+          />
+        ))}
+      </View>
+      {error ? <Text style={styles.noDeal}>{error}</Text> : null}
+      {trip.nearby?.length && trip.allowedStores.length ? (
+        <Text style={styles.nearbyText}>
+          {trip.nearby.map((n) => `${STORES[n.store].name} ${formatDistance(n.distance)}`).join(' · ')}
+        </Text>
+      ) : null}
+    </View>
+  );
+}
+
 /** How to plan the trip: how many stores at most, and which ones. */
 function TripBar() {
   const { trip, setTrip } = useShoppingList();
@@ -128,12 +177,13 @@ function TripBar() {
           />
         ))}
       </View>
+      <NearMe />
       <Text style={styles.tripLabel}>Где покупать</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         <Chip
           label="Везде"
           selected={trip.allowedStores.length === 0}
-          onPress={() => setTrip({ ...trip, allowedStores: [] })}
+          onPress={() => setTrip({ ...trip, allowedStores: [], nearbyRadius: undefined })}
         />
         {[...prefs.stores]
           // Grocery chains first: that's what a shopping list is usually for.
@@ -384,6 +434,7 @@ const styles = StyleSheet.create({
   savedText: { fontSize: 15, fontWeight: '700', color: colors.text },
   savedHint: { fontSize: 12, color: colors.muted, marginTop: 2 },
   tripBox: { backgroundColor: colors.card, borderRadius: 12, padding: 12, marginBottom: 10 },
+  nearbyText: { fontSize: 12, color: colors.muted, marginBottom: 4 },
   tripLabel: { fontSize: 13, fontWeight: '700', color: colors.muted, marginBottom: 6 },
   hint: { fontSize: 12, color: colors.muted, marginTop: 6, marginBottom: 12 },
   empty: { textAlign: 'center', color: colors.muted, marginTop: 30, fontSize: 15 },
