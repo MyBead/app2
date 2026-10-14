@@ -1,7 +1,7 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
-import { blixLeaflets, blixOffers, parseBlixDate, pickLeaflets } from '../src/providers/blix';
+import { blixLeaflets, blixOffers, blixPages, parseBlixDate, pickLeaflets } from '../src/providers/blix';
 import { fetchStore, parsePage, pruneLeafletCache, type LeafletCache } from '../src/providers';
 import { decodeHtmlEntities } from '../src/core/text';
 
@@ -64,8 +64,28 @@ describe('blix.pl', () => {
       validTo: '2026-10-21',
       imageUrl: 'https://imgproxy.blix.pl/product_occurrence//99223c0a-999.jpg?bucket=400',
       url: 'https://blix.pl/sklep/kaufland/gazetka/528900/?pageNumber=1',
+      leaflet: { id: '528900', page: 1, box: [0, 0.16, 0.39, 0.48] },
     });
     expect(offers[2].validFrom).toBe('2026-10-19');
+  });
+});
+
+describe('blix leaflet pages', () => {
+  it('reads page images (src or lazy data-src) of the requested leaflet only', () => {
+    expect(blixPages(fixture('blix-leaflet.html'), '528900')).toEqual([
+      {
+        page: 1,
+        url: 'https://imgproxy.blix.pl/image/leaflet/528900/3e3c2a5e.jpg?ext=webp&bucket=800',
+        width: 1535,
+        height: 2165,
+      },
+      {
+        page: 2,
+        url: 'https://imgproxy.blix.pl/image/leaflet/528900/bc33abb4.jpg?ext=webp&bucket=800',
+        width: 1535,
+        height: 2165,
+      },
+    ]);
   });
 });
 

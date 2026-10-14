@@ -111,6 +111,24 @@ export default function DealScreen() {
           {list.hasDeal(deal.id) ? '✓ В списке покупок' : '+ Добавить в список покупок'}
         </Text>
       </Pressable>
+      {deal.leaflet ? (
+        <Pressable
+          style={[styles.button, styles.buttonSecondary]}
+          onPress={() =>
+            router.push({
+              pathname: '/leaflet/[store]/[id]',
+              params: {
+                store: deal.store,
+                id: deal.leaflet!.id,
+                page: String(deal.leaflet!.page),
+                box: deal.leaflet!.box?.join(',') ?? '',
+              },
+            })
+          }
+        >
+          <Text style={[styles.buttonText, { color: colors.text }]}>📰 Показать в газетке</Text>
+        </Pressable>
+      ) : null}
       <Pressable style={[styles.button, styles.buttonSecondary]} onPress={() => setWatching(true)}>
         <Text style={[styles.buttonText, { color: colors.text }]}>🎯 Следить за ценой</Text>
       </Pressable>

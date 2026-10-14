@@ -1,7 +1,7 @@
 import { isoDate } from '../core/scoring';
 import { STORES } from '../core/stores';
 import type { Deal, Preferences, StoreId } from '../core/types';
-import { BLIX, blixLeaflets, blixOffers, leafletUrl, pickLeaflets } from './blix';
+import { BLIX, blixLeaflets, blixOffers, blixPages, leafletUrl, pickLeaflets, type LeafletPage } from './blix';
 import { demoDeals } from './demo';
 import { extractDeals, toDeals } from './extract';
 import { zabkaOffers } from './zabka';
@@ -18,7 +18,7 @@ export interface StoreResult {
  * Parsed blix leaflets by `${store}:${leafletId}`. A leaflet never changes and its page weighs
  * up to ~3 MB, so each one is downloaded once and kept until it expires.
  */
-export type LeafletCache = Record<string, { end: string; deals: Deal[] }>;
+export type LeafletCache = Record<string, { end: string; name?: string; deals: Deal[]; pages?: LeafletPage[] }>;
 
 const TIMEOUT_MS = 30_000;
 const HEADERS = {
@@ -69,15 +69,19 @@ async function fetchBlix(
   const deals: Deal[] = [];
   for (const leaflet of leaflets) {
     const key = `${store}:${leaflet.id}`;
+    // Entries saved before the leaflet viewer have no pages — fetch those once more when allowed.
+    const fresh = cache[key]?.pages !== undefined;
     if (!cache[key] && !downloadLeaflets) {
       errors.push(`«${leaflet.name}»: загрузится по Wi-Fi`);
-    } else if (!cache[key]) {
+    } else if (!fresh && downloadLeaflets) {
       const url = leafletUrl(slug, leaflet.id);
       try {
-        const found = toDeals(blixOffers(await fetchText(url), slug, leaflet.id), store, url);
+        const html = await fetchText(url);
+        const found = toDeals(blixOffers(html, slug, leaflet.id), store, url);
         // An empty parse may be a temporary error page — don't remember it.
-        if (found.length > 0) cache[key] = { end: leaflet.end, deals: found };
-        else errors.push(`${url}: акций в газетке не найдено`);
+        if (found.length > 0) {
+          cache[key] = { end: leaflet.end, name: leaflet.name, deals: found, pages: blixPages(html, leaflet.id) };
+        } else errors.push(`${url}: акций в газетке не найдено`);
       } catch (e) {
         errors.push(`${url}: ${e instanceof Error ? e.message : String(e)}`);
       }

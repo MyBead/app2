@@ -44,6 +44,14 @@ export type CategoryId =
   | 'electronics'
   | 'other';
 
+export interface LeafletSpot {
+  /** blix.pl leaflet id. */
+  id: string;
+  page: number;
+  /** Offer rectangle as fractions of the page: [left, top, right, bottom]. */
+  box?: [number, number, number, number];
+}
+
 export interface Deal {
   /** Stable id: `${store}:${slug}` — used to remember which deals were already notified. */
   id: string;
@@ -67,6 +75,8 @@ export interface Deal {
   /** Only with a loyalty app/card: Lidl Plus, Moja Biedronka, Żappka, Kaufland Card. */
   requiresApp?: boolean;
   source: 'live' | 'demo';
+  /** Where the offer sits in its leaflet, for the in-app leaflet viewer. */
+  leaflet?: LeafletSpot;
 }
 
 export interface NotificationPrefs {

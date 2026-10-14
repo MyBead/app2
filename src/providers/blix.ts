@@ -94,6 +94,9 @@ export function blixOffers(html: string, slug: string, leafletId: string): RawOf
     const a = attrs(tag);
     if (a['data-leaflet-id'] !== leafletId || !a['data-name']) continue;
     const cents = Number(a['data-price']);
+    const corners = ['topleftcorner-x', 'topleftcorner-y', 'bottomrightcorner-x', 'bottomrightcorner-y'].map((k) =>
+      Number(a[`data-${k}`]),
+    );
     out.push({
       title: a['data-name'],
       price: Number.isFinite(cents) && cents > 0 ? cents / 100 : undefined,
@@ -101,7 +104,36 @@ export function blixOffers(html: string, slug: string, leafletId: string): RawOf
       validTo: parseBlixDate(a['data-date-end']),
       imageUrl: part.match(/data-src="(https:\/\/imgproxy\.blix\.pl\/product_occurrence[^"]+)"/)?.[1],
       url: leafletUrl(slug, leafletId, a['data-page-number']),
+      leaflet: {
+        id: leafletId,
+        page: Number(a['data-page-number']) || 1,
+        box: corners.every((c) => Number.isFinite(c) && c >= 0 && c <= 1)
+          ? (corners as [number, number, number, number])
+          : undefined,
+      },
     });
   }
   return out.filter((o) => o.price);
+}
+
+export interface LeafletPage {
+  page: number;
+  url: string;
+  /** Image size, so the viewer can keep the aspect ratio and place offer frames exactly. */
+  width: number;
+  height: number;
+}
+
+/** Page images of one leaflet (lazy-loaded pages keep the real URL in data-src). */
+export function blixPages(html: string, leafletId: string): LeafletPage[] {
+  const pages = new Map<number, LeafletPage>();
+  for (const [tag] of html.matchAll(/<img\b[^>]*class="page-img[^"]*"[^>]*>/g)) {
+    const a = attrs(tag);
+    if (a['data-leaflet-id'] !== leafletId) continue;
+    const url = [a['data-src'], a.src].find((u) => u && /imgproxy\.blix\.pl\/image\/leaflet/.test(u));
+    const page = Number(a['data-page-number']);
+    if (!url || !page || pages.has(page)) continue;
+    pages.set(page, { page, url, width: Number(a.width) || 1000, height: Number(a.height) || 1414 });
+  }
+  return [...pages.values()].sort((x, y) => x.page - y.page);
 }

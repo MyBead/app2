@@ -45,6 +45,7 @@ function Gate() {
       <Stack screenOptions={{ contentStyle: { backgroundColor: colors.bg } }}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="deal/[id]" options={{ title: 'Акция', headerBackTitle: 'Назад' }} />
+        <Stack.Screen name="leaflet/[store]/[id]" options={{ title: 'Газетка', headerBackTitle: 'Назад' }} />
       </Stack>
     </ShoppingListProvider>
   );
