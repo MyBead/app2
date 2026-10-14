@@ -12,7 +12,7 @@ import type { Deal, Preferences } from '../core/types';
 import type { StoreResult } from '../providers';
 import { setBackgroundChecks } from '../services/backgroundTask';
 import { ensurePermission, setupNotificationChannel } from '../services/notifications';
-import { markHotDealsSeen, refreshDeals } from '../services/refresh';
+import { markHotDealsSeen, refreshDeals, sendListAndWatchAlerts } from '../services/refresh';
 import { loadPreferences, loadPriceHistory, loadResults, savePreferences } from '../services/storage';
 
 interface DealsState {
@@ -55,6 +55,8 @@ export function DealsProvider({ children }: { children: ReactNode }) {
       // The user is looking at the app, so these deals are already known — the background
       // check will only notify about ones that appear later.
       await markHotDealsSeen(fresh, p);
+      // Watches and list reminders were asked for explicitly — send them even while the app is open.
+      await sendListAndWatchAlerts(fresh, p).catch(() => 0);
     } catch (e) {
       setLastError(e instanceof Error ? e.message : String(e));
     } finally {

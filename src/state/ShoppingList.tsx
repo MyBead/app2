@@ -8,8 +8,16 @@ import {
   type ListPlan,
   type TripOptions,
 } from '../core/shoppingList';
+import type { PriceWatch } from '../core/alerts';
 import type { Deal } from '../core/types';
-import { loadShoppingList, loadTripOptions, saveShoppingList, saveTripOptions } from '../services/storage';
+import {
+  loadShoppingList,
+  loadTripOptions,
+  loadWatches,
+  saveShoppingList,
+  saveTripOptions,
+  saveWatches,
+} from '../services/storage';
 import { useDeals } from './DealsContext';
 
 interface ShoppingListState {
@@ -25,6 +33,9 @@ interface ShoppingListState {
   hasDeal: (dealId: string) => boolean;
   trip: TripOptions;
   setTrip: (trip: TripOptions) => void;
+  watches: PriceWatch[];
+  addWatch: (text: string, maxPrice?: number) => void;
+  removeWatch: (id: string) => void;
 }
 
 const Ctx = createContext<ShoppingListState | null>(null);
@@ -36,14 +47,30 @@ export function ShoppingListProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<ListItem[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [trip, setTripState] = useState<TripOptions>(DEFAULT_TRIP);
+  const [watches, setWatches] = useState<PriceWatch[]>([]);
 
   useEffect(() => {
-    Promise.all([loadShoppingList(), loadTripOptions()]).then(([saved, savedTrip]) => {
+    Promise.all([loadShoppingList(), loadTripOptions(), loadWatches()]).then(([saved, savedTrip, savedWatches]) => {
       setItems(saved);
       setTripState(savedTrip);
+      setWatches(savedWatches);
       setLoaded(true);
     });
   }, []);
+
+  useEffect(() => {
+    if (loaded) saveWatches(watches).catch(() => {});
+  }, [watches, loaded]);
+
+  const addWatch = useCallback((text: string, maxPrice?: number) => {
+    const t = text.trim().toLowerCase();
+    if (!t) return;
+    setWatches((cur) => [
+      ...cur.filter((w) => w.text !== t),
+      { id: newId(), text: t, maxPrice, createdAt: new Date().toISOString() },
+    ]);
+  }, []);
+  const removeWatch = useCallback((id: string) => setWatches((cur) => cur.filter((w) => w.id !== id)), []);
 
   const setTrip = useCallback((next: TripOptions) => {
     setTripState(next);
@@ -112,8 +139,38 @@ export function ShoppingListProvider({ children }: { children: ReactNode }) {
   const hasDeal = useCallback((dealId: string) => items.some((i) => i.dealId === dealId), [items]);
 
   const value = useMemo(
-    () => ({ items, plan, addText, addDeal, pick, toggle, remove, clearChecked, hasDeal, trip, setTrip }),
-    [items, plan, addText, addDeal, pick, toggle, remove, clearChecked, hasDeal, trip, setTrip],
+    () => ({
+      items,
+      plan,
+      addText,
+      addDeal,
+      pick,
+      toggle,
+      remove,
+      clearChecked,
+      hasDeal,
+      trip,
+      setTrip,
+      watches,
+      addWatch,
+      removeWatch,
+    }),
+    [
+      items,
+      plan,
+      addText,
+      addDeal,
+      pick,
+      toggle,
+      remove,
+      clearChecked,
+      hasDeal,
+      trip,
+      setTrip,
+      watches,
+      addWatch,
+      removeWatch,
+    ],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

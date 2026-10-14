@@ -35,18 +35,18 @@ export async function hasPermission(): Promise<boolean> {
   return (await Notifications.getPermissionsAsync()).granted;
 }
 
-export async function deliver(plan: NotificationPlan): Promise<void> {
-  const content: Notifications.NotificationContentInput = {
-    title: plan.title,
-    body: plan.body,
-    data: { dealIds: plan.deals.map((d) => d.deal.id), screen: 'top' },
-  };
+/** Shows a notification now, or at `at` (used to wait out quiet hours). */
+export async function notify(title: string, body: string, at: Date | null, screen = 'top'): Promise<void> {
   await Notifications.scheduleNotificationAsync({
-    content,
-    trigger: plan.deliverAt
-      ? { type: Notifications.SchedulableTriggerInputTypes.DATE, date: plan.deliverAt, channelId: CHANNEL_ID }
+    content: { title, body, data: { screen } },
+    trigger: at
+      ? { type: Notifications.SchedulableTriggerInputTypes.DATE, date: at, channelId: CHANNEL_ID }
       : Platform.OS === 'android'
         ? { channelId: CHANNEL_ID }
         : null,
   });
+}
+
+export async function deliver(plan: NotificationPlan): Promise<void> {
+  await notify(plan.title, plan.body, plan.deliverAt);
 }

@@ -3,6 +3,8 @@ import { FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, Vi
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PriceInsightLine } from '../../components/PriceInsightLine';
+import { WatchModal } from '../../components/WatchModal';
+import { watchMatches } from '../../core/alerts';
 import { Chip, StoreBadge, colors } from '../../components/ui';
 import { formatPrice } from '../../core/price';
 import type { ItemPlan } from '../../core/shoppingList';
@@ -150,6 +152,54 @@ function TripBar() {
   );
 }
 
+/** Price watches: what is tracked, the best current offer, and whether it hits the target. */
+function Watches() {
+  const { watches, removeWatch } = useShoppingList();
+  const { results, prefs } = useDeals();
+  const [adding, setAdding] = useState(false);
+  const deals = results.flatMap((r) => r.deals);
+  return (
+    <View style={styles.storeCard}>
+      <View style={styles.storeHeader}>
+        <Text style={[styles.groupTitle, { flex: 1 }]}>🎯 Слежу за ценой</Text>
+        <Pressable onPress={() => setAdding(true)} hitSlop={8}>
+          <Text style={styles.clear}>+ Добавить</Text>
+        </Pressable>
+      </View>
+      {watches.length === 0 ? (
+        <Text style={styles.noDeal}>
+          Добавьте товар и порог цены — придёт уведомление, когда он появится в акции дешевле.
+        </Text>
+      ) : null}
+      {watches.map((w) => {
+        const best = watchMatches({ ...w, maxPrice: undefined }, deals, prefs)[0];
+        const hit = best && (w.maxPrice === undefined || (best.price ?? Infinity) <= w.maxPrice);
+        return (
+          <View key={w.id} style={styles.itemRow}>
+            <View style={styles.itemBody}>
+              <Text style={styles.itemText}>
+                {w.text}
+                {w.maxPrice !== undefined ? (
+                  <Text style={styles.noDeal}>{`  до ${formatPrice(w.maxPrice)}`}</Text>
+                ) : null}
+              </Text>
+              <Text style={[styles.dealLine, hit ? { color: colors.accent, fontWeight: '700' } : null]}>
+                {best
+                  ? `${hit ? '✅ ' : ''}Сейчас: ${STORES[best.store].name}, ${formatPrice(best.price)}`
+                  : 'Сейчас в акциях нет'}
+              </Text>
+            </View>
+            <Pressable onPress={() => removeWatch(w.id)} hitSlop={8}>
+              <Text style={styles.remove}>✕</Text>
+            </Pressable>
+          </View>
+        );
+      })}
+      {adding ? <WatchModal onClose={() => setAdding(false)} /> : null}
+    </View>
+  );
+}
+
 export default function ShoppingListScreen() {
   const { plan, items, addText, clearChecked } = useShoppingList();
   const [text, setText] = useState('');
@@ -217,6 +267,8 @@ export default function ShoppingListScreen() {
             ))}
           </View>
         ) : null}
+
+        <Watches />
 
         {plan.checked.length > 0 ? (
           <View style={styles.storeCard}>

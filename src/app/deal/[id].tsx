@@ -1,4 +1,5 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { useState } from 'react';
 import * as WebBrowser from 'expo-web-browser';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -8,6 +9,8 @@ import { categoryInfo } from '../../core/categories';
 import { formatPrice } from '../../core/price';
 import { STORES } from '../../core/stores';
 import { PriceInsightLine } from '../../components/PriceInsightLine';
+import { WatchModal } from '../../components/WatchModal';
+import { itemTextFromDeal } from '../../core/shoppingList';
 import { useDeals } from '../../state/DealsContext';
 import { useShoppingList } from '../../state/ShoppingList';
 
@@ -15,6 +18,7 @@ export default function DealScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { ranked, dealById, prefs, updatePrefs, insightFor, othersFor } = useDeals();
   const list = useShoppingList();
+  const [watching, setWatching] = useState(false);
   // Hidden deals aren't in `ranked`, so fall back to the raw list.
   const scored = ranked.find((s) => s.deal.id === id);
   const deal = scored?.deal ?? dealById.get(id);
@@ -91,6 +95,16 @@ export default function DealScreen() {
           {list.hasDeal(deal.id) ? '✓ В списке покупок' : '+ Добавить в список покупок'}
         </Text>
       </Pressable>
+      <Pressable style={[styles.button, styles.buttonSecondary]} onPress={() => setWatching(true)}>
+        <Text style={[styles.buttonText, { color: colors.text }]}>🎯 Следить за ценой</Text>
+      </Pressable>
+      {watching ? (
+        <WatchModal
+          initialText={itemTextFromDeal(deal)}
+          initialPrice={deal.price ? Math.floor(deal.price * 0.9 * 100) / 100 : undefined}
+          onClose={() => setWatching(false)}
+        />
+      ) : null}
       <Pressable
         style={[styles.button, styles.buttonSecondary]}
         onPress={() => WebBrowser.openBrowserAsync(deal.url ?? store.website)}

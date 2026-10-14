@@ -1,15 +1,28 @@
+import { planAlerts } from '../core/alerts';
 import { recordPrices } from '../core/compare';
-import { EMPTY_NOTIFY_STATE, markNotified, markSeen, planNotification, type NotificationPlan } from '../core/notify';
+import {
+  EMPTY_NOTIFY_STATE,
+  markNotified,
+  markSeen,
+  nextAllowedTime,
+  planNotification,
+  type NotificationPlan,
+} from '../core/notify';
 import { isoDate, rankDeals } from '../core/scoring';
 import type { Preferences } from '../core/types';
 import { fetchAllDeals, pruneLeafletCache, type StoreResult } from '../providers';
-import { deliver, hasPermission } from './notifications';
+import { deliver, hasPermission, notify } from './notifications';
 import {
+  loadAlertState,
   loadLeafletCache,
   loadPriceHistory,
   loadNotifyState,
   loadPreferences,
   loadResults,
+  loadShoppingList,
+  loadTripOptions,
+  loadWatches,
+  saveAlertState,
   saveLeafletCache,
   savePriceHistory,
   saveNotifyState,
@@ -83,10 +96,33 @@ export async function sendPreviewNotification(results: StoreResult[], prefs: Pre
   return true;
 }
 
+/**
+ * Price watches and shopping-list reminders. These are explicit requests, so they ignore
+ * the daily cap, but still wait out quiet hours.
+ */
+export async function sendListAndWatchAlerts(results: StoreResult[], prefs: Preferences): Promise<number> {
+  if (prefs.useDemoData || !(await hasPermission())) return 0;
+  const [list, trip, watches, state] = await Promise.all([
+    loadShoppingList(),
+    loadTripOptions(),
+    loadWatches(),
+    loadAlertState(),
+  ]);
+  const { alerts, state: next } = planAlerts(
+    { deals: results.flatMap((r) => r.deals), prefs, list, trip, watches },
+    state,
+  );
+  const at = nextAllowedTime(prefs.notifications, new Date());
+  for (const a of alerts) await notify(a.title, a.body, at, a.kind === 'watch' ? 'all' : 'list');
+  await saveAlertState(next);
+  return alerts.length;
+}
+
 /** The whole background job: refresh, then notify. */
 export async function backgroundCheck(): Promise<void> {
   const prefs = await loadPreferences();
   if (!prefs.notifications.enabled) return;
   const results = await refreshDeals(prefs);
   await notifyAboutNewDeals(results, prefs);
+  await sendListAndWatchAlerts(results, prefs);
 }

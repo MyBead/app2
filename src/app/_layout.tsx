@@ -24,7 +24,8 @@ function Gate() {
       const id = response.notification.request.identifier;
       if (handled.current === id) return;
       handled.current = id;
-      router.navigate('/');
+      const screen = response.notification.request.content.data?.screen;
+      router.navigate(screen === 'list' ? '/list' : screen === 'all' ? '/all' : '/');
     };
     open(Notifications.getLastNotificationResponse());
     const sub = Notifications.addNotificationResponseReceivedListener(open);

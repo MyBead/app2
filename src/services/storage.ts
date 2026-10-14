@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { EMPTY_ALERT_STATE, type AlertState, type PriceWatch } from '../core/alerts';
 import type { PriceHistory } from '../core/compare';
 import { EMPTY_NOTIFY_STATE, type NotifyState } from '../core/notify';
 import { DEFAULT_TRIP, type ListItem, type TripOptions } from '../core/shoppingList';
@@ -14,6 +15,8 @@ const KEYS = {
   history: 'okazje/price-history/v1',
   list: 'okazje/shopping-list/v1',
   trip: 'okazje/trip/v1',
+  watches: 'okazje/watches/v1',
+  alerts: 'okazje/alerts/v1',
 };
 
 async function readJson<T>(key: string): Promise<T | null> {
@@ -47,3 +50,9 @@ export const saveShoppingList = (items: ListItem[]) => writeJson(KEYS.list, item
 
 export const loadTripOptions = async () => ({ ...DEFAULT_TRIP, ...(await readJson<Partial<TripOptions>>(KEYS.trip)) });
 export const saveTripOptions = (trip: TripOptions) => writeJson(KEYS.trip, trip);
+
+export const loadWatches = async () => (await readJson<PriceWatch[]>(KEYS.watches)) ?? [];
+export const saveWatches = (watches: PriceWatch[]) => writeJson(KEYS.watches, watches);
+
+export const loadAlertState = async () => (await readJson<AlertState>(KEYS.alerts)) ?? EMPTY_ALERT_STATE;
+export const saveAlertState = (state: AlertState) => writeJson(KEYS.alerts, state);
