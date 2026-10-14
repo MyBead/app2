@@ -14,6 +14,7 @@ import { setBackgroundChecks } from '../services/backgroundTask';
 import { ensurePermission, setupNotificationChannel } from '../services/notifications';
 import { markHotDealsSeen, refreshDeals, sendListAndWatchAlerts } from '../services/refresh';
 import { loadPreferences, loadPriceHistory, loadResults, savePreferences } from '../services/storage';
+import { updateHotDealsWidget } from '../widget/update';
 
 interface DealsState {
   ready: boolean;
@@ -91,7 +92,10 @@ export function DealsProvider({ children }: { children: ReactNode }) {
       const next = typeof patch === 'function' ? patch(prev) : { ...prev, ...patch };
       prefsRef.current = next;
       setPrefs(next);
-      savePreferences(next).catch(() => {});
+      // The widget follows store and keyword choices once they're saved.
+      savePreferences(next)
+        .then(updateHotDealsWidget)
+        .catch(() => {});
 
       if (next.notifications.enabled !== prev.notifications.enabled) {
         if (next.notifications.enabled) ensurePermission().catch(() => false);

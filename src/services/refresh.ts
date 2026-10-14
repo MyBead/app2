@@ -30,6 +30,7 @@ import {
   saveNotifyState,
   saveResults,
 } from './storage';
+import { updateHotDealsWidget } from '../widget/update';
 
 /** Leaflet pages are big; with "Wi-Fi only" on, mobile data uses cached leaflets. */
 async function mayDownloadLeaflets(prefs: Preferences): Promise<boolean> {
@@ -62,6 +63,7 @@ export async function refreshDeals(prefs: Preferences): Promise<StoreResult[]> {
     const live = fresh.flatMap((r) => r.deals);
     await savePriceHistory(recordPrices(await loadPriceHistory(), live, isoDate(new Date())));
   }
+  await updateHotDealsWidget();
   return merged;
 }
 
