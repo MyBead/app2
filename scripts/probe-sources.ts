@@ -238,7 +238,11 @@ async function leafletPages(slug: string) {
   ];
   console.log(`leaflet ${leaflet.id} ${leaflet.name}: page-wrappers=${pages.length}`);
   for (const p of pages.filter((p) => p[1] === leaflet.id).slice(0, 4)) console.log(`  page ${p[2]}: ${p[3]}`);
-  const imgs = [...html.matchAll(/class="page-img[^"]*"[^>]*/g)].slice(0, 3).map((m) => m[0].slice(0, 400));
+  const imgs = [...html.matchAll(/<img[^>]*class="page-img[^"]*"[^>]*>/g)]
+    .filter((m) => m[0].includes(`data-leaflet-id="${leaflet.id}"`))
+    .map((m) => m[0]);
+  console.log(`page-img count for this leaflet: ${imgs.length}`);
+  imgs.splice(3, imgs.length - 4);
   console.log(`page-img tags:\n${imgs.join('\n')}`);
   const offers = [...html.matchAll(/<div class="offer[ "][^>]*>/g)].slice(0, 6).map((m) => m[0]);
   console.log(`offers:\n${offers.join('\n')}`);
