@@ -209,8 +209,66 @@ async function endToEnd(stores: StoreId[]) {
   console.log(`\nleaflets cached: ${Object.keys(cache).join(', ')}`);
 }
 
+/** Brand slugs and leaflet counts for candidate chains on blix.pl. */
+async function blixSlugs(slugs: string[]) {
+  for (const slug of slugs) {
+    const res = await fetch(`${BLIX}/sklep/${slug}/`, { headers: HEADERS });
+    const html = await res.text();
+    const brandSlugs = top(
+      [...html.matchAll(/data-brand-slug="([^"]+)"/g)].map((m) => m[1]),
+      3,
+    );
+    const current = pickLeaflets(blixLeaflets(html, brandSlugs[0]?.split(' ')[0] ?? slug), isoDate(new Date()));
+    console.log(
+      `blix ${slug}: status=${res.status} final=${res.url} brand-slugs=${brandSlugs.join(', ')} current=${current.map((l) => l.name).join(' | ')}`,
+    );
+  }
+}
+
+/** Leaflet page structure: page images and offer coordinates, for the in-app viewer. */
+async function leafletPages(slug: string) {
+  const store = await (await fetch(`${BLIX}/sklep/${slug}/`, { headers: HEADERS })).text();
+  const leaflet = pickLeaflets(blixLeaflets(store, slug), isoDate(new Date()))[0];
+  if (!leaflet) return console.log(`no leaflet for ${slug}`);
+  const html = await (await fetch(`${BLIX}/sklep/${slug}/gazetka/${leaflet.id}/`, { headers: HEADERS })).text();
+  const pages = [
+    ...html.matchAll(
+      /<div class="page-wrapper"[^>]*data-leaflet-id="(\d+)"[^>]*data-page-number="(\d+)"[^>]*>[\s\S]{0,800}?<img[^>]*src="([^"]+)"/g,
+    ),
+  ];
+  console.log(`leaflet ${leaflet.id} ${leaflet.name}: page-wrappers=${pages.length}`);
+  for (const p of pages.filter((p) => p[1] === leaflet.id).slice(0, 4)) console.log(`  page ${p[2]}: ${p[3]}`);
+  const imgs = [...html.matchAll(/class="page-img[^"]*"[^>]*/g)].slice(0, 3).map((m) => m[0].slice(0, 400));
+  console.log(`page-img tags:\n${imgs.join('\n')}`);
+  const offers = [...html.matchAll(/<div class="offer[ "][^>]*>/g)].slice(0, 6).map((m) => m[0]);
+  console.log(`offers:\n${offers.join('\n')}`);
+}
+
+/** OpenStreetMap shops around a point (used for "stores near me"). */
+async function overpass(lat: number, lon: number) {
+  const q = `[out:json][timeout:20];nwr["shop"]["brand"~"Lidl|Biedronka|Żabka|Kaufland|Media Markt|RTV Euro AGD|Media Expert|Aldi|Carrefour|Netto|Dino|Rossmann|Hebe|Pepco|Action|Auchan",i](around:2000,${lat},${lon});out center 80;`;
+  const res = await fetch('https://overpass-api.de/api/interpreter', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': 'okazje-app-probe' },
+    body: `data=${encodeURIComponent(q)}`,
+  });
+  const json = (await res.json()) as {
+    elements: { tags?: Record<string, string>; lat?: number; center?: { lat: number } }[];
+  };
+  console.log(`overpass status=${res.status} elements=${json.elements.length}`);
+  console.log(
+    top(
+      json.elements.map((e) => `${e.tags?.brand} / ${e.tags?.name}`),
+      30,
+    ).join('\n'),
+  );
+}
+
 async function main() {
   const args = process.argv.slice(2);
+  if (args[0] === '--blix') return blixSlugs(args.slice(1));
+  if (args[0] === '--leaflet') return leafletPages(args[1]);
+  if (args[0] === '--overpass') return overpass(Number(args[1]), Number(args[2]));
   if (args.includes('--pages')) {
     const groups = args.filter((a) => a in CANDIDATES);
     for (const g of groups.length ? groups : Object.keys(CANDIDATES))
