@@ -3,10 +3,11 @@ import { FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, Vi
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PriceInsightLine } from '../../components/PriceInsightLine';
-import { StoreBadge, colors } from '../../components/ui';
+import { Chip, StoreBadge, colors } from '../../components/ui';
 import { formatPrice } from '../../core/price';
 import type { ItemPlan } from '../../core/shoppingList';
 import { STORES } from '../../core/stores';
+import { formatUnitPrice, unitPrice } from '../../core/units';
 import { useDeals } from '../../state/DealsContext';
 import { useShoppingList } from '../../state/ShoppingList';
 
@@ -87,7 +88,10 @@ function PickerModal({ plan, onClose }: { plan: ItemPlan | null; onClose: () => 
                   </Text>
                   {d.subtitle ? <Text style={styles.optionSub}>{d.subtitle}</Text> : null}
                 </View>
-                <Text style={styles.optionPrice}>{formatPrice(d.price)}</Text>
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Text style={styles.optionPrice}>{formatPrice(d.price)}</Text>
+                  {unitPrice(d) ? <Text style={styles.optionSub}>{formatUnitPrice(unitPrice(d)!)}</Text> : null}
+                </View>
                 <Text style={styles.optionCheck}>{chosen ? '✓' : ''}</Text>
               </Pressable>
             );
@@ -95,6 +99,54 @@ function PickerModal({ plan, onClose }: { plan: ItemPlan | null; onClose: () => 
         />
       </SafeAreaView>
     </Modal>
+  );
+}
+
+/** How to plan the trip: how many stores at most, and which ones. */
+function TripBar() {
+  const { trip, setTrip } = useShoppingList();
+  const { prefs } = useDeals();
+  const toggleStore = (id: (typeof prefs.stores)[number]) =>
+    setTrip({
+      ...trip,
+      allowedStores: trip.allowedStores.includes(id)
+        ? trip.allowedStores.filter((s) => s !== id)
+        : [...trip.allowedStores, id],
+    });
+  return (
+    <View style={styles.tripBox}>
+      <Text style={styles.tripLabel}>Сколько магазинов обойти</Text>
+      <View style={styles.wrap}>
+        {[null, 1, 2, 3].map((n) => (
+          <Chip
+            key={String(n)}
+            label={n === null ? 'Сколько угодно (дешевле всего)' : `не больше ${n}`}
+            selected={trip.maxStores === n}
+            onPress={() => setTrip({ ...trip, maxStores: n })}
+          />
+        ))}
+      </View>
+      <Text style={styles.tripLabel}>Где покупать</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        <Chip
+          label="Везде"
+          selected={trip.allowedStores.length === 0}
+          onPress={() => setTrip({ ...trip, allowedStores: [] })}
+        />
+        {[...prefs.stores]
+          // Grocery chains first: that's what a shopping list is usually for.
+          .sort((a, b) => Number(STORES[a].group !== 'grocery') - Number(STORES[b].group !== 'grocery'))
+          .map((id) => (
+            <Chip
+              key={id}
+              label={STORES[id].name}
+              color={STORES[id].color}
+              selected={trip.allowedStores.includes(id)}
+              onPress={() => toggleStore(id)}
+            />
+          ))}
+      </ScrollView>
+    </View>
   );
 }
 
@@ -132,6 +184,7 @@ export default function ShoppingListScreen() {
           самая дешёвая текущая акция.
         </Text>
 
+        {items.length > 0 ? <TripBar /> : null}
         {items.length === 0 ? <Text style={styles.empty}>Список пуст.</Text> : null}
 
         {storesCount > 0 ? (
@@ -201,6 +254,9 @@ const styles = StyleSheet.create({
   },
   addButton: { backgroundColor: colors.accent, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 11 },
   addButtonText: { color: '#FFFFFF', fontWeight: '700' },
+  wrap: { flexDirection: 'row', flexWrap: 'wrap' },
+  tripBox: { backgroundColor: colors.card, borderRadius: 12, padding: 12, marginBottom: 10 },
+  tripLabel: { fontSize: 13, fontWeight: '700', color: colors.muted, marginBottom: 6 },
   hint: { fontSize: 12, color: colors.muted, marginTop: 6, marginBottom: 12 },
   empty: { textAlign: 'center', color: colors.muted, marginTop: 30, fontSize: 15 },
   totalBox: { backgroundColor: colors.accentSoft, borderRadius: 10, padding: 12, marginBottom: 10 },

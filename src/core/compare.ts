@@ -4,6 +4,7 @@
  */
 import { effectiveDiscount } from './price';
 import { words } from './text';
+import { comparablePrices } from './units';
 import type { Deal, StoreId } from './types';
 
 const STOP_WORDS = new Set(['z', 'i', 'w', 'na', 'do', 'dla', 'ze', 'o', 'od', 'bez', 'lub', 'oraz', 'a']);
@@ -34,6 +35,8 @@ export interface OtherStorePrice {
   store: StoreId;
   price: number;
   dealId: string;
+  /** Their price relative to this deal (0.8 = 20% cheaper), per kg/l when both packs state a size. */
+  ratio: number;
 }
 
 /** For each deal, the cheapest price of the same product in each other chain. */
@@ -54,9 +57,12 @@ export function crossStorePrices(deals: Deal[]): Map<string, OtherStorePrice[]> 
       const best = new Map<StoreId, OtherStorePrice>();
       for (const b of bucket) {
         if (b.deal.store === a.deal.store || !sameProduct(a.tokens, b.tokens)) continue;
+        // Per kg/l when both packs state a size, so 250 g vs 1 kg compares fairly.
+        const [mine, theirs] = comparablePrices(a.deal, b.deal) ?? [a.deal.price!, b.deal.price!];
+        const ratio = theirs / mine;
         const cur = best.get(b.deal.store);
-        if (!cur || b.deal.price! < cur.price) {
-          best.set(b.deal.store, { store: b.deal.store, price: b.deal.price!, dealId: b.deal.id });
+        if (!cur || ratio < cur.ratio) {
+          best.set(b.deal.store, { store: b.deal.store, price: b.deal.price!, dealId: b.deal.id, ratio });
         }
       }
       if (best.size > 0)
@@ -124,16 +130,16 @@ export function priceInsight(
   }
   if (price && others?.length) {
     const cheapestOther = others[0];
-    if (cheapestOther.price < price - 0.005) {
+    if (cheapestOther.ratio < 0.995) {
       return {
         kind: 'cheaperElsewhere',
-        amount: price - cheapestOther.price,
+        amount: price * (1 - cheapestOther.ratio),
         store: cheapestOther.store,
         price: cheapestOther.price,
       };
     }
-    const nextOther = others.find((o) => o.price > price + 0.005);
-    if (nextOther) return { kind: 'cheapest', amount: nextOther.price - price, store: nextOther.store };
+    const nextOther = others.find((o) => o.ratio > 1.005);
+    if (nextOther) return { kind: 'cheapest', amount: price * (nextOther.ratio - 1), store: nextOther.store };
   }
   if (price && history && history.length > 1) {
     const previous = history[history.length - 2].price;

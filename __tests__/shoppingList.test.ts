@@ -84,6 +84,34 @@ describe('planList', () => {
   });
 });
 
+describe('trip options', () => {
+  const items = [item('masło'), item('kawa'), item('kurczak')];
+
+  it('limits the trip to N stores, covering as many items as possible at the lowest total', () => {
+    const one = planList(items, DEALS, DEFAULT_PREFERENCES, NOW, { maxStores: 1, allowedStores: [] });
+    // Kaufland and Biedronka each cover two items; Biedronka's pair is cheaper (20,48 vs 36,98 zł).
+    expect(one.stops.map((s) => s.store)).toEqual(['biedronka']);
+    expect(one.stops[0].items.map((p) => p.best?.title)).toEqual(['Masło ekstra Mlekovita', 'Kawa mielona Lavazza']);
+    expect(one.noDeal.map((p) => p.item.text)).toEqual(['kurczak']);
+
+    const two = planList(items, DEALS, DEFAULT_PREFERENCES, NOW, { maxStores: 2, allowedStores: [] });
+    expect(two.stops.map((s) => s.store).sort()).toEqual(['biedronka', 'kaufland']);
+    expect(two.noDeal).toEqual([]);
+  });
+
+  it('keeps pinned stores within the limit', () => {
+    const pinned = [item('masło', { dealId: 'lidl:Masło extra Pilos' }), item('kawa'), item('kurczak')];
+    const plan = planList(pinned, DEALS, DEFAULT_PREFERENCES, NOW, { maxStores: 2, allowedStores: [] });
+    expect(plan.stops.map((s) => s.store).sort()).toEqual(['kaufland', 'lidl']);
+  });
+
+  it('uses only the allowed stores', () => {
+    const plan = planList(items, DEALS, DEFAULT_PREFERENCES, NOW, { maxStores: null, allowedStores: ['biedronka'] });
+    expect(plan.stops.map((s) => s.store)).toEqual(['biedronka']);
+    expect(plan.noDeal.map((p) => p.item.text)).toEqual(['kurczak']);
+  });
+});
+
 describe('itemTextFromDeal', () => {
   it('drops pack sizes and trademark signs', () => {
     expect(itemTextFromDeal(deal('lidl', 'Masło extra Pilos 200 g', 4.99))).toBe('masło extra pilos');

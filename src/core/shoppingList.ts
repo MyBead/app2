@@ -1,6 +1,7 @@
 import { classify } from './categories';
 import { isVisible } from './scoring';
 import { matchesKeyword } from './text';
+import { comparablePrices } from './units';
 import type { Deal, Preferences, StoreId } from './types';
 
 export interface ListItem {
@@ -36,7 +37,11 @@ export interface ListPlan {
   total: number;
 }
 
-const byPrice = (a: Deal, b: Deal) => (a.price ?? Infinity) - (b.price ?? Infinity) || a.title.localeCompare(b.title);
+/** Cheapest first — by price per kg/l when both packs state their size, else by shelf price. */
+const byPrice = (a: Deal, b: Deal) => {
+  const c = comparablePrices(a, b);
+  return (c ? c[0] - c[1] : (a.price ?? Infinity) - (b.price ?? Infinity)) || a.title.localeCompare(b.title);
+};
 
 /** Current deals matching a list item, cheapest first. Pet food only matches pet-related items. */
 export function matchDeals(text: string, deals: Deal[]): Deal[] {
@@ -44,9 +49,63 @@ export function matchDeals(text: string, deals: Deal[]): Deal[] {
   return deals.filter((d) => matchesKeyword(d.title, text) && (d.category !== 'pets' || pets)).sort(byPrice);
 }
 
+export interface TripOptions {
+  /** At most this many stores (pinned items' stores included); null = no limit. */
+  maxStores: number | null;
+  /** Only these stores; empty = every enabled store. */
+  allowedStores: StoreId[];
+}
+
+export const DEFAULT_TRIP: TripOptions = { maxStores: null, allowedStores: [] };
+
+function* subsets<T>(items: T[], size: number, start = 0, acc: T[] = []): Generator<T[]> {
+  if (acc.length === size) {
+    yield acc;
+    return;
+  }
+  for (let i = start; i < items.length; i++) yield* subsets(items, size, i + 1, [...acc, items[i]]);
+}
+
+/**
+ * Picks the stores to visit: covers as many items with deals as possible, then minimises the
+ * total, then prefers fewer stops. Brute force — there are only a handful of chains.
+ */
+export function chooseStores(plans: ItemPlan[], maxStores: number): Set<StoreId> {
+  const forced = new Set(plans.filter((p) => p.pinned && p.best).map((p) => p.best!.store));
+  const open = plans.filter((p) => !p.pinned && p.matches.length > 0);
+  const candidates = [...new Set(open.flatMap((p) => p.matches.map((d) => d.store)))].filter((s) => !forced.has(s));
+  const room = Math.max(0, maxStores - forced.size);
+  let best: { stores: Set<StoreId>; covered: number; cost: number } | null = null;
+  for (let size = 0; size <= Math.min(room, candidates.length); size++) {
+    for (const extra of subsets(candidates, size)) {
+      const stores = new Set([...forced, ...extra]);
+      let covered = 0;
+      let cost = 0;
+      for (const p of open) {
+        const d = p.matches.find((m) => stores.has(m.store));
+        if (d) {
+          covered++;
+          cost += d.price ?? 0;
+        }
+      }
+      if (!best || covered > best.covered || (covered === best.covered && cost < best.cost - 0.005)) {
+        best = { stores, covered, cost };
+      }
+    }
+  }
+  return best?.stores ?? forced;
+}
+
 /** Decides where to buy each list item and groups the result by store. */
-export function planList(items: ListItem[], deals: Deal[], prefs: Preferences, now = new Date()): ListPlan {
-  const visible = deals.filter((d) => isVisible(d, prefs, now));
+export function planList(
+  items: ListItem[],
+  deals: Deal[],
+  prefs: Preferences,
+  now = new Date(),
+  trip: TripOptions = DEFAULT_TRIP,
+): ListPlan {
+  const allowed = trip.allowedStores.length ? trip.allowedStores : prefs.stores;
+  const visible = deals.filter((d) => allowed.includes(d.store) && isVisible(d, prefs, now));
   const byId = new Map(deals.map((d) => [d.id, d]));
   const plans: ItemPlan[] = items.map((item) => {
     const matches = matchDeals(item.text, visible);
@@ -59,6 +118,12 @@ export function planList(items: ListItem[], deals: Deal[], prefs: Preferences, n
       pinned: !!pinnedValid,
     };
   });
+
+  if (trip.maxStores !== null) {
+    const active = plans.filter((p) => !p.item.checked);
+    const stores = chooseStores(active, trip.maxStores);
+    for (const p of active) if (!p.pinned) p.best = p.matches.find((m) => stores.has(m.store));
+  }
 
   const stops = new Map<StoreId, StoreStop>();
   const noDeal: ItemPlan[] = [];

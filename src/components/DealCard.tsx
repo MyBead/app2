@@ -5,6 +5,7 @@ import { categoryInfo } from '../core/categories';
 import { formatPrice } from '../core/price';
 import type { ScoredDeal } from '../core/scoring';
 import { STORES } from '../core/stores';
+import { formatUnitPrice, unitPrice } from '../core/units';
 import { useDeals } from '../state/DealsContext';
 import { useShoppingList } from '../state/ShoppingList';
 import { PriceInsightLine } from './PriceInsightLine';
@@ -25,6 +26,7 @@ export function DealCard({ item }: { item: ScoredDeal }) {
   const { insightFor } = useDeals();
   const list = useShoppingList();
   const inList = list.hasDeal(deal.id);
+  const perUnit = unitPrice(deal);
 
   return (
     <Pressable
@@ -68,6 +70,7 @@ export function DealCard({ item }: { item: ScoredDeal }) {
           {deal.oldPrice ? <Text style={styles.oldPrice}>{formatPrice(deal.oldPrice)}</Text> : null}
           {discount > 0 ? <Text style={styles.discount}>−{discount}%</Text> : null}
           {deal.promoLabel ? <Text style={styles.promo}>{deal.promoLabel}</Text> : null}
+          {perUnit ? <Text style={styles.unit}>{formatUnitPrice(perUnit)}</Text> : null}
         </View>
         <PriceInsightLine insight={insightFor(deal)} />
         <Text style={styles.meta} numberOfLines={1}>
@@ -120,6 +123,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     overflow: 'hidden',
   },
+  unit: { fontSize: 12, color: colors.muted },
   promo: { fontSize: 13, fontWeight: '700', color: colors.accent },
   meta: { fontSize: 12, color: colors.muted, marginTop: 4 },
 });

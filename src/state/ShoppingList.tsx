@@ -1,8 +1,15 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
-import { itemTextFromDeal, planList, type ListItem, type ListPlan } from '../core/shoppingList';
+import {
+  DEFAULT_TRIP,
+  itemTextFromDeal,
+  planList,
+  type ListItem,
+  type ListPlan,
+  type TripOptions,
+} from '../core/shoppingList';
 import type { Deal } from '../core/types';
-import { loadShoppingList, saveShoppingList } from '../services/storage';
+import { loadShoppingList, loadTripOptions, saveShoppingList, saveTripOptions } from '../services/storage';
 import { useDeals } from './DealsContext';
 
 interface ShoppingListState {
@@ -16,6 +23,8 @@ interface ShoppingListState {
   remove: (itemId: string) => void;
   clearChecked: () => void;
   hasDeal: (dealId: string) => boolean;
+  trip: TripOptions;
+  setTrip: (trip: TripOptions) => void;
 }
 
 const Ctx = createContext<ShoppingListState | null>(null);
@@ -26,12 +35,19 @@ export function ShoppingListProvider({ children }: { children: ReactNode }) {
   const { results, prefs } = useDeals();
   const [items, setItems] = useState<ListItem[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [trip, setTripState] = useState<TripOptions>(DEFAULT_TRIP);
 
   useEffect(() => {
-    loadShoppingList().then((saved) => {
+    Promise.all([loadShoppingList(), loadTripOptions()]).then(([saved, savedTrip]) => {
       setItems(saved);
+      setTripState(savedTrip);
       setLoaded(true);
     });
+  }, []);
+
+  const setTrip = useCallback((next: TripOptions) => {
+    setTripState(next);
+    saveTripOptions(next).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -88,14 +104,16 @@ export function ShoppingListProvider({ children }: { children: ReactNode }) {
         items,
         results.flatMap((r) => r.deals),
         prefs,
+        new Date(),
+        trip,
       ),
-    [items, results, prefs],
+    [items, results, prefs, trip],
   );
   const hasDeal = useCallback((dealId: string) => items.some((i) => i.dealId === dealId), [items]);
 
   const value = useMemo(
-    () => ({ items, plan, addText, addDeal, pick, toggle, remove, clearChecked, hasDeal }),
-    [items, plan, addText, addDeal, pick, toggle, remove, clearChecked, hasDeal],
+    () => ({ items, plan, addText, addDeal, pick, toggle, remove, clearChecked, hasDeal, trip, setTrip }),
+    [items, plan, addText, addDeal, pick, toggle, remove, clearChecked, hasDeal, trip, setTrip],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

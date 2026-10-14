@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import type { PriceHistory } from '../core/compare';
 import { EMPTY_NOTIFY_STATE, type NotifyState } from '../core/notify';
-import type { ListItem } from '../core/shoppingList';
+import { DEFAULT_TRIP, type ListItem, type TripOptions } from '../core/shoppingList';
 import { mergePreferences, type Preferences } from '../core/types';
 import type { LeafletCache, StoreResult } from '../providers';
 
@@ -13,6 +13,7 @@ const KEYS = {
   leaflets: 'okazje/leaflets/v1',
   history: 'okazje/price-history/v1',
   list: 'okazje/shopping-list/v1',
+  trip: 'okazje/trip/v1',
 };
 
 async function readJson<T>(key: string): Promise<T | null> {
@@ -43,3 +44,6 @@ export const savePriceHistory = (history: PriceHistory) => writeJson(KEYS.histor
 
 export const loadShoppingList = async () => (await readJson<ListItem[]>(KEYS.list)) ?? [];
 export const saveShoppingList = (items: ListItem[]) => writeJson(KEYS.list, items);
+
+export const loadTripOptions = async () => ({ ...DEFAULT_TRIP, ...(await readJson<Partial<TripOptions>>(KEYS.trip)) });
+export const saveTripOptions = (trip: TripOptions) => writeJson(KEYS.trip, trip);

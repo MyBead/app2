@@ -36,10 +36,12 @@ describe('crossStorePrices', () => {
       deal('biedronka', 'Kawa mielona Jacobs Krönung Intense', 22.99),
       deal('lidl', 'Kawa mielona Lavazza', 14.99),
     ]);
-    expect(map.get('zabka:Kawa mielona Jacobs Krönung')).toEqual([
-      { store: 'biedronka', price: 22.99, dealId: 'biedronka:Kawa mielona Jacobs Krönung Intense' },
-      { store: 'kaufland', price: 24.99, dealId: 'kaufland:Kawa mielona Jacobs Krönung 500 g' },
+    const others = map.get('zabka:Kawa mielona Jacobs Krönung')!;
+    expect(others.map((o) => [o.store, o.price, o.dealId])).toEqual([
+      ['biedronka', 22.99, 'biedronka:Kawa mielona Jacobs Krönung Intense'],
+      ['kaufland', 24.99, 'kaufland:Kawa mielona Jacobs Krönung 500 g'],
     ]);
+    expect(others[0].ratio).toBeCloseTo(22.99 / 31.99);
     expect(map.has('lidl:Kawa mielona Lavazza')).toBe(false);
   });
 });
@@ -61,22 +63,33 @@ describe('priceInsight', () => {
   });
 
   it('says where it is cheaper, or by how much this store wins', () => {
-    expect(priceInsight(d, [{ store: 'lidl', price: 25, dealId: 'x' }], undefined)).toEqual({
-      kind: 'cheaperElsewhere',
-      amount: 5,
-      store: 'lidl',
-      price: 25,
-    });
-    expect(
-      priceInsight(
-        d,
-        [
-          { store: 'lidl', price: 30, dealId: 'x' },
-          { store: 'kaufland', price: 34, dealId: 'y' },
-        ],
-        undefined,
-      ),
-    ).toEqual({ kind: 'cheapest', amount: 4, store: 'kaufland' });
+    const cheaper = priceInsight(d, [{ store: 'lidl', price: 25, dealId: 'x', ratio: 25 / 30 }], undefined);
+    expect(cheaper).toMatchObject({ kind: 'cheaperElsewhere', store: 'lidl', price: 25 });
+    expect(cheaper.kind === 'cheaperElsewhere' && cheaper.amount).toBeCloseTo(5);
+    const wins = priceInsight(
+      d,
+      [
+        { store: 'lidl', price: 30, dealId: 'x', ratio: 1 },
+        { store: 'kaufland', price: 34, dealId: 'y', ratio: 34 / 30 },
+      ],
+      undefined,
+    );
+    expect(wins).toMatchObject({ kind: 'cheapest', store: 'kaufland' });
+    expect(wins.kind === 'cheapest' && wins.amount).toBeCloseTo(4);
+  });
+
+  it('compares per kilo when pack sizes differ', () => {
+    const map = crossStorePrices([
+      deal('lidl', 'Kawa mielona Lavazza Rossa 250 g', 14.99),
+      deal('kaufland', 'Kawa mielona Lavazza Rossa 1 kg', 49.99),
+    ]);
+    // 59.96 zł/kg vs 49.99 zł/kg: the bigger pack is the better buy despite the higher price.
+    const lidl = priceInsight(
+      deal('lidl', 'Kawa mielona Lavazza Rossa 250 g', 14.99),
+      map.get('lidl:Kawa mielona Lavazza Rossa 250 g'),
+      undefined,
+    );
+    expect(lidl).toMatchObject({ kind: 'cheaperElsewhere', store: 'kaufland' });
   });
 
   it('falls back to the previous price in this store, then to unknown', () => {
