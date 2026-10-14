@@ -15,6 +15,8 @@ import { normalize } from '../src/core/text';
 import { categoryInfo } from '../src/core/categories';
 import { DEFAULT_PREFERENCES } from '../src/core/types';
 import { rankDeals } from '../src/core/scoring';
+import { lookupProduct } from '../src/providers/products';
+import { productQuery } from '../src/core/barcode';
 
 /** Pages dumped by --pages, by group name (a store id or any label). */
 const CANDIDATES: Record<string, string[]> = {
@@ -272,6 +274,15 @@ async function main() {
   const args = process.argv.slice(2);
   if (args[0] === '--blix') return blixSlugs(args.slice(1));
   if (args[0] === '--leaflet') return leafletPages(args[1]);
+  if (args[0] === '--barcode') {
+    for (const code of args.slice(1)) {
+      const p = await lookupProduct(code).catch((e) => `error: ${e}`);
+      console.log(
+        `barcode ${code}: ${JSON.stringify(p)}${p && typeof p === 'object' ? ` → «${productQuery(p)}»` : ''}`,
+      );
+    }
+    return;
+  }
   if (args[0] === '--overpass') return overpass(Number(args[1]), Number(args[2]));
   if (args.includes('--pages')) {
     const groups = args.filter((a) => a in CANDIDATES);

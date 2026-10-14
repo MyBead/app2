@@ -46,6 +46,7 @@ function Gate() {
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="deal/[id]" options={{ title: 'Акция', headerBackTitle: 'Назад' }} />
         <Stack.Screen name="leaflet/[store]/[id]" options={{ title: 'Газетка', headerBackTitle: 'Назад' }} />
+        <Stack.Screen name="scan" options={{ title: 'Сканер штрихкодов', headerBackTitle: 'Назад' }} />
       </Stack>
     </ShoppingListProvider>
   );

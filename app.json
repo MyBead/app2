@@ -37,6 +37,14 @@
         {
           "locationWhenInUsePermission": "Okazje использует местоположение, чтобы найти ближайшие магазины для списка покупок."
         }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Okazje использует камеру, чтобы сканировать штрихкоды товаров и искать их в акциях.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
+        }
       ]
     ]
   }

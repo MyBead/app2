@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -82,6 +83,13 @@ export default function AllDealsScreen() {
                 autoCorrect={false}
                 clearButtonMode="while-editing"
               />
+              <Pressable
+                style={styles.filterButton}
+                onPress={() => router.push('/scan')}
+                accessibilityLabel="Сканировать штрихкод"
+              >
+                <Text style={styles.filterText}>📷</Text>
+              </Pressable>
               <Pressable
                 style={[styles.filterButton, active > 0 && styles.filterButtonOn]}
                 onPress={() => setSheetOpen(true)}

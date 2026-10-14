@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { FlatList, Modal, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -324,6 +325,13 @@ export default function ShoppingListScreen() {
           <Pressable style={styles.addButton} onPress={add}>
             <Text style={styles.addButtonText}>Добавить</Text>
           </Pressable>
+          <Pressable
+            style={styles.scanButton}
+            onPress={() => router.push('/scan')}
+            accessibilityLabel="Сканировать штрихкод"
+          >
+            <Text style={styles.addButtonText}>📷</Text>
+          </Pressable>
         </View>
         <Text style={styles.hint}>
           Пишите по-польски, можно через запятую. Или нажмите «+ в список» на любой акции. Для каждого товара выбирается
@@ -419,6 +427,14 @@ const styles = StyleSheet.create({
   },
   addButton: { backgroundColor: colors.accentStrong, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 11 },
   addButtonText: { color: colors.onAccent, fontWeight: '700' },
+  scanButton: {
+    backgroundColor: colors.card,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
   wrap: { flexDirection: 'row', flexWrap: 'wrap' },
   actions: { flexDirection: 'row', gap: 8, marginBottom: 10 },
   actionButton: {
