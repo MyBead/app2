@@ -4,19 +4,9 @@ import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } fro
 import { STORES } from '../core/stores';
 import type { StoreId } from '../core/types';
 
-export const colors = {
-  bg: '#F4F5F7',
-  card: '#FFFFFF',
-  text: '#1B1D21',
-  muted: '#6B7280',
-  border: '#E3E5E8',
-  accent: '#0B7A3E',
-  accentSoft: '#E3F4EA',
-  hot: '#D93025',
-  hotSoft: '#FDECEA',
-  warn: '#B45309',
-  warnSoft: '#FEF3C7',
-};
+import { colors } from '../theme';
+
+export { colors };
 
 export function StoreBadge({ store, small }: { store: StoreId; small?: boolean }) {
   const s = STORES[store];
@@ -38,7 +28,7 @@ export function Chip({
   onPress: () => void;
   color?: string;
 }) {
-  const active = color ?? colors.accent;
+  const active = color ?? colors.accentStrong;
   return (
     <Pressable
       onPress={onPress}
@@ -115,7 +105,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   chipText: { color: colors.text, fontSize: 14 },
-  chipTextSelected: { color: '#FFFFFF', fontWeight: '600' },
+  chipTextSelected: { color: colors.onAccent, fontWeight: '600' },
   section: { backgroundColor: colors.card, borderRadius: 12, padding: 16, marginBottom: 12 },
   sectionTitle: { fontSize: 17, fontWeight: '700', color: colors.text, marginBottom: 4 },
   sectionHint: { fontSize: 13, color: colors.muted, marginBottom: 12 },

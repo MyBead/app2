@@ -10,6 +10,7 @@ import { activeFilterCount, applyFilter, EMPTY_FILTER, SORTS, type DealFilter } 
 import { formatPrice } from '../../core/price';
 import { STORE_GROUPS, STORES } from '../../core/stores';
 import { useDeals } from '../../state/DealsContext';
+import { useShoppingList } from '../../state/ShoppingList';
 
 /** Removable chips summarising the active filter. */
 function ActiveFilters({ f, onChange }: { f: DealFilter; onChange: (f: DealFilter) => void }) {
@@ -44,7 +45,17 @@ export default function AllDealsScreen() {
   const [filter, setFilter] = useState<DealFilter>(EMPTY_FILTER);
   const [sheetOpen, setSheetOpen] = useState(false);
 
-  const shown = useMemo(() => applyFilter(ranked, filter, (s) => insightFor(s.deal)), [ranked, filter, insightFor]);
+  const { favorites } = useShoppingList();
+  const shown = useMemo(
+    () =>
+      applyFilter(
+        ranked,
+        filter,
+        (s) => insightFor(s.deal),
+        (id) => favorites.includes(id),
+      ),
+    [ranked, filter, insightFor, favorites],
+  );
   const active = activeFilterCount(filter);
   const sortLabel = SORTS.find((s) => s.id === filter.sort)?.label;
 
@@ -96,6 +107,11 @@ export default function AllDealsScreen() {
                   }
                 />
               ))}
+              <Chip
+                label={`★ Избранное${favorites.length ? ` (${favorites.length})` : ''}`}
+                selected={filter.starredOnly}
+                onPress={() => setFilter((f) => ({ ...f, starredOnly: !f.starredOnly }))}
+              />
             </View>
             <ActiveFilters f={filter} onChange={setFilter} />
             <StatusBanner />
@@ -145,9 +161,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 11,
   },
-  filterButtonOn: { backgroundColor: colors.accent, borderColor: colors.accent },
+  filterButtonOn: { backgroundColor: colors.accentStrong, borderColor: colors.accent },
   filterText: { fontSize: 14, fontWeight: '600', color: colors.text },
-  filterTextOn: { color: '#FFFFFF' },
+  filterTextOn: { color: colors.onAccent },
   groupRow: { flexDirection: 'row', flexWrap: 'wrap' },
   chips: { marginBottom: 4 },
   summary: { fontSize: 13, color: colors.muted, marginBottom: 8 },

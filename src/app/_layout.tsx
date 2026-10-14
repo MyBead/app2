@@ -1,12 +1,13 @@
 import '../services/backgroundTask';
 
 import * as Notifications from 'expo-notifications';
-import { router, Stack } from 'expo-router';
+import { DarkTheme, DefaultTheme, router, Stack, ThemeProvider } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef } from 'react';
 import { ActivityIndicator, Platform, View } from 'react-native';
 
 import { colors } from '../components/ui';
+import { isDark } from '../theme';
 import { DealsProvider, useDealsMaybe } from '../state/DealsContext';
 import { ShoppingListProvider } from '../state/ShoppingList';
 
@@ -49,11 +50,26 @@ function Gate() {
   );
 }
 
+const base = isDark ? DarkTheme : DefaultTheme;
+const navTheme = {
+  ...base,
+  colors: {
+    ...base.colors,
+    primary: colors.accent,
+    background: colors.bg,
+    card: colors.card,
+    text: colors.text,
+    border: colors.border,
+  },
+};
+
 export default function RootLayout() {
   return (
-    <DealsProvider>
-      <StatusBar style="dark" />
-      <Gate />
-    </DealsProvider>
+    <ThemeProvider value={navTheme}>
+      <DealsProvider>
+        <StatusBar style={isDark ? 'light' : 'dark'} />
+        <Gate />
+      </DealsProvider>
+    </ThemeProvider>
   );
 }

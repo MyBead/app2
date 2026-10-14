@@ -1,3 +1,5 @@
+import * as Network from 'expo-network';
+
 import { planAlerts } from '../core/alerts';
 import { recordPrices } from '../core/compare';
 import {
@@ -29,13 +31,24 @@ import {
   saveResults,
 } from './storage';
 
+/** Leaflet pages are big; with "Wi-Fi only" on, mobile data uses cached leaflets. */
+async function mayDownloadLeaflets(prefs: Preferences): Promise<boolean> {
+  if (!prefs.wifiOnlyLeaflets) return true;
+  try {
+    const state = await Network.getNetworkStateAsync();
+    return state.type === Network.NetworkStateType.WIFI || state.type === Network.NetworkStateType.ETHERNET;
+  } catch {
+    return true;
+  }
+}
+
 /**
  * Loads fresh offers. A store that fails this time keeps its last good result, so a
  * flaky connection doesn't wipe the list.
  */
 export async function refreshDeals(prefs: Preferences): Promise<StoreResult[]> {
   const [cache, previous] = await Promise.all([loadLeafletCache(), loadResults()]);
-  const fresh = await fetchAllDeals(prefs, cache);
+  const fresh = await fetchAllDeals(prefs, cache, new Date(), await mayDownloadLeaflets(prefs));
   await saveLeafletCache(pruneLeafletCache(cache));
   const merged = fresh.map((r) => {
     if (r.deals.length > 0) return r;

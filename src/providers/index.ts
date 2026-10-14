@@ -56,14 +56,22 @@ export function parsePage(html: string, store: StoreId, url: string): Deal[] {
 }
 
 /** Current leaflet offers of one chain from blix.pl; a leaflet that fails is reported, not fatal. */
-async function fetchBlix(store: StoreId, cache: LeafletCache, today: string, errors: string[]): Promise<Deal[]> {
+async function fetchBlix(
+  store: StoreId,
+  cache: LeafletCache,
+  today: string,
+  errors: string[],
+  downloadLeaflets: boolean,
+): Promise<Deal[]> {
   const slug = STORES[store].blixSlug;
   const leaflets = pickLeaflets(blixLeaflets(await fetchText(`${BLIX}/sklep/${slug}/`), slug), today);
   if (leaflets.length === 0) throw new Error('нет действующих газеток');
   const deals: Deal[] = [];
   for (const leaflet of leaflets) {
     const key = `${store}:${leaflet.id}`;
-    if (!cache[key]) {
+    if (!cache[key] && !downloadLeaflets) {
+      errors.push(`«${leaflet.name}»: загрузится по Wi-Fi`);
+    } else if (!cache[key]) {
       const url = leafletUrl(slug, leaflet.id);
       try {
         const found = toDeals(blixOffers(await fetchText(url), slug, leaflet.id), store, url);
@@ -85,6 +93,7 @@ export async function fetchStore(
   urls: string[],
   cache: LeafletCache = {},
   now = new Date(),
+  downloadLeaflets = true,
 ): Promise<StoreResult> {
   const deals = new Map<string, Deal>();
   const errors: string[] = [];
@@ -101,7 +110,7 @@ export async function fetchStore(
     }
   }
   try {
-    add(await fetchBlix(store, cache, isoDate(now), errors));
+    add(await fetchBlix(store, cache, isoDate(now), errors, downloadLeaflets));
   } catch (e) {
     errors.push(`blix.pl: ${e instanceof Error ? e.message : String(e)}`);
   }
@@ -117,6 +126,7 @@ export async function fetchAllDeals(
   prefs: Preferences,
   cache: LeafletCache = {},
   now = new Date(),
+  downloadLeaflets = true,
 ): Promise<StoreResult[]> {
   if (prefs.useDemoData) {
     const all = demoDeals(now);
@@ -126,7 +136,9 @@ export async function fetchAllDeals(
       fetchedAt: now.toISOString(),
     }));
   }
-  return Promise.all(prefs.stores.map((store) => fetchStore(store, sourceUrls(store, prefs), cache, now)));
+  return Promise.all(
+    prefs.stores.map((store) => fetchStore(store, sourceUrls(store, prefs), cache, now, downloadLeaflets)),
+  );
 }
 
 /** Drops leaflets that have ended. */

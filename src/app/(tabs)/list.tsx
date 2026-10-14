@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { FlatList, Modal, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PriceInsightLine } from '../../components/PriceInsightLine';
@@ -7,7 +7,7 @@ import { WatchModal } from '../../components/WatchModal';
 import { watchMatches } from '../../core/alerts';
 import { Chip, StoreBadge, colors } from '../../components/ui';
 import { formatPrice } from '../../core/price';
-import type { ItemPlan } from '../../core/shoppingList';
+import { buildShareText, parseListText, savedThisMonth, type ItemPlan } from '../../core/shoppingList';
 import { STORES } from '../../core/stores';
 import { formatUnitPrice, unitPrice } from '../../core/units';
 import { useDeals } from '../../state/DealsContext';
@@ -200,8 +200,54 @@ function Watches() {
   );
 }
 
+/** Paste a list (e.g. one shared from another phone) to add its items. */
+function ImportModal({ onClose }: { onClose: () => void }) {
+  const { addText } = useShoppingList();
+  const [text, setText] = useState('');
+  const items = parseListText(text);
+  return (
+    <Modal visible animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      <SafeAreaView style={styles.modal} edges={['top', 'bottom']}>
+        <View style={styles.modalHeader}>
+          <Text style={styles.modalTitle}>Импорт списка</Text>
+          <Pressable onPress={onClose} hitSlop={10}>
+            <Text style={styles.modalClose}>Отмена</Text>
+          </Pressable>
+        </View>
+        <View style={{ padding: 12, flex: 1 }}>
+          <Text style={styles.hint}>
+            Вставьте список, которым с вами поделились (или просто товары — по одному в строке или через запятую).
+          </Text>
+          <TextInput
+            value={text}
+            onChangeText={setText}
+            multiline
+            placeholder={'• masło — …\n• kawa — …'}
+            placeholderTextColor={colors.muted}
+            style={[styles.input, { minHeight: 180, textAlignVertical: 'top' }]}
+          />
+          <Text style={styles.hint}>Найдено товаров: {items.length}</Text>
+          <Pressable
+            style={[styles.addButton, { alignItems: 'center', marginTop: 8 }]}
+            onPress={() => {
+              if (items.length) addText(items.join(','));
+              onClose();
+            }}
+          >
+            <Text style={styles.addButtonText}>Добавить {items.length}</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    </Modal>
+  );
+}
+
 export default function ShoppingListScreen() {
-  const { plan, items, addText, clearChecked } = useShoppingList();
+  const { plan, items, addText, clearChecked, savings } = useShoppingList();
+  const [importing, setImporting] = useState(false);
+  const saved = savedThisMonth(savings);
+  const share = () =>
+    Share.share({ message: buildShareText(plan, (s) => STORES[s].name, formatPrice) }).catch(() => undefined);
   const [text, setText] = useState('');
   const [picking, setPicking] = useState<ItemPlan | null>(null);
   const add = () => {
@@ -234,6 +280,22 @@ export default function ShoppingListScreen() {
           самая дешёвая текущая акция.
         </Text>
 
+        <View style={styles.actions}>
+          {items.length > 0 ? (
+            <Pressable onPress={share} style={styles.actionButton}>
+              <Text style={styles.actionText}>📤 Поделиться</Text>
+            </Pressable>
+          ) : null}
+          <Pressable onPress={() => setImporting(true)} style={styles.actionButton}>
+            <Text style={styles.actionText}>📥 Импорт</Text>
+          </Pressable>
+        </View>
+        {saved > 0 ? (
+          <View style={styles.savedBox}>
+            <Text style={styles.savedText}>💰 Сэкономлено в этом месяце: {formatPrice(saved)}</Text>
+            <Text style={styles.savedHint}>Считается, когда вы отмечаете купленным товар с известной выгодой.</Text>
+          </View>
+        ) : null}
         {items.length > 0 ? <TripBar /> : null}
         {items.length === 0 ? <Text style={styles.empty}>Список пуст.</Text> : null}
 
@@ -285,6 +347,7 @@ export default function ShoppingListScreen() {
         ) : null}
       </ScrollView>
       <PickerModal plan={picking} onClose={() => setPicking(null)} />
+      {importing ? <ImportModal onClose={() => setImporting(false)} /> : null}
     </>
   );
 }
@@ -304,9 +367,22 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: colors.text,
   },
-  addButton: { backgroundColor: colors.accent, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 11 },
-  addButtonText: { color: '#FFFFFF', fontWeight: '700' },
+  addButton: { backgroundColor: colors.accentStrong, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 11 },
+  addButtonText: { color: colors.onAccent, fontWeight: '700' },
   wrap: { flexDirection: 'row', flexWrap: 'wrap' },
+  actions: { flexDirection: 'row', gap: 8, marginBottom: 10 },
+  actionButton: {
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  actionText: { fontSize: 14, fontWeight: '600', color: colors.text },
+  savedBox: { backgroundColor: colors.accentSoft, borderRadius: 10, padding: 12, marginBottom: 10 },
+  savedText: { fontSize: 15, fontWeight: '700', color: colors.text },
+  savedHint: { fontSize: 12, color: colors.muted, marginTop: 2 },
   tripBox: { backgroundColor: colors.card, borderRadius: 12, padding: 12, marginBottom: 10 },
   tripLabel: { fontSize: 13, fontWeight: '700', color: colors.muted, marginBottom: 6 },
   hint: { fontSize: 12, color: colors.muted, marginTop: 6, marginBottom: 12 },

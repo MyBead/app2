@@ -14,6 +14,22 @@ export interface ListItem {
   addedAt: string;
 }
 
+/** Money saved on a bought list item (its proven saving at purchase time). */
+export interface SavingEntry {
+  itemId: string;
+  title: string;
+  store: StoreId;
+  amount: number;
+  /** ISO date-time of purchase. */
+  at: string;
+}
+
+/** Total saved in the calendar month of `now`. */
+export function savedThisMonth(entries: SavingEntry[], now = new Date()): number {
+  const month = now.toISOString().slice(0, 7);
+  return entries.filter((e) => e.at.slice(0, 7) === month).reduce((s, e) => s + e.amount, 0);
+}
+
 export interface ItemPlan {
   item: ListItem;
   /** Deal to buy: the pinned one, or the cheapest current match. */
@@ -149,4 +165,42 @@ export function itemTextFromDeal(deal: Deal): string {
     .replace(/[®™]/g, '')
     .trim()
     .toLowerCase();
+}
+
+/** Plain-text list for messengers, grouped by store. `parseListText` reads it back. */
+export function buildShareText(
+  plan: ListPlan,
+  storeName: (s: StoreId) => string,
+  money: (n?: number) => string,
+): string {
+  const lines: string[] = ['🛒 Список покупок'];
+  for (const stop of plan.stops) {
+    lines.push('', `${storeName(stop.store)} — ${money(stop.total)}`);
+    for (const p of stop.items) lines.push(`• ${p.item.text} — ${p.best?.title ?? ''}, ${money(p.best?.price)}`);
+  }
+  if (plan.noDeal.length) {
+    lines.push('', 'Без акций');
+    for (const p of plan.noDeal) lines.push(`• ${p.item.text}`);
+  }
+  if (plan.stops.length) lines.push('', `Итого по акциям: ${money(plan.total)}`);
+  return lines.join('\n');
+}
+
+/**
+ * Items from pasted text: a shared list (bullet lines; the part before " — "), or plain
+ * lines / comma-separated words.
+ */
+export function parseListText(text: string): string[] {
+  const lines = text.split(/\r?\n/).map((l) => l.trim());
+  const bullets = lines.filter((l) => /^[•\-*☐☑✓]\s*/.test(l));
+  const source = bullets.length ? bullets : lines.filter((l) => l && !/^🛒/.test(l));
+  return [
+    ...new Set(
+      source
+        .map((l) => l.replace(/^[•\-*☐☑✓]\s*/, '').split(' — ')[0])
+        .flatMap((l) => (bullets.length ? [l] : l.split(',')))
+        .map((l) => l.trim().toLowerCase())
+        .filter((l) => l.length > 1 && !/^(итого|без акций)/i.test(l)),
+    ),
+  ];
 }

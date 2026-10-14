@@ -69,6 +69,8 @@ export interface Preferences {
   onlyFavoriteCategories: boolean;
   includeAppOnly: boolean;
   useDemoData: boolean;
+  /** Download new leaflets (up to ~3 MB each) only on Wi-Fi; on mobile data use cached ones. */
+  wifiOnlyLeaflets: boolean;
   /** Per-store override of the pages the scraper reads. */
   customSourceUrls: Partial<Record<StoreId, string>>;
   notifications: NotificationPrefs;
@@ -96,6 +98,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   onlyFavoriteCategories: false,
   includeAppOnly: true,
   useDemoData: false,
+  wifiOnlyLeaflets: false,
   customSourceUrls: {},
   notifications: {
     enabled: true,

@@ -77,7 +77,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg,
   },
   buttons: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 16 },
-  button: { backgroundColor: colors.accent, borderRadius: 8, paddingHorizontal: 16, paddingVertical: 10 },
+  button: { backgroundColor: colors.accentStrong, borderRadius: 8, paddingHorizontal: 16, paddingVertical: 10 },
   secondary: { backgroundColor: colors.bg },
-  buttonText: { color: '#FFFFFF', fontWeight: '700' },
+  buttonText: { color: colors.onAccent, fontWeight: '700' },
 });

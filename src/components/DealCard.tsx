@@ -26,6 +26,7 @@ export function DealCard({ item }: { item: ScoredDeal }) {
   const { insightFor } = useDeals();
   const list = useShoppingList();
   const inList = list.hasDeal(deal.id);
+  const starred = list.favorites.includes(deal.id);
   const perUnit = unitPrice(deal);
 
   return (
@@ -46,6 +47,13 @@ export function DealCard({ item }: { item: ScoredDeal }) {
           {hot ? <Text style={styles.hotTag}>🔥</Text> : null}
           {deal.requiresApp ? <Text style={styles.appTag}>📱 {STORES[deal.store].loyaltyApp}</Text> : null}
           <View style={{ flex: 1 }} />
+          <Pressable
+            onPress={() => list.toggleFavorite(deal.id)}
+            hitSlop={10}
+            accessibilityLabel={starred ? 'Убрать из избранного' : 'В избранное'}
+          >
+            <Text style={[styles.star, starred && styles.starOn]}>{starred ? '★' : '☆'}</Text>
+          </Pressable>
           <Pressable
             onPress={() => (inList ? undefined : list.addDeal(deal))}
             hitSlop={10}
@@ -92,12 +100,14 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   cardHot: { borderColor: colors.hot },
-  image: { width: 72, height: 72, borderRadius: 8, marginRight: 12, backgroundColor: '#FAFAFA' },
+  image: { width: 72, height: 72, borderRadius: 8, marginRight: 12, backgroundColor: colors.photoBg },
   imagePlaceholder: { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg },
   placeholderEmoji: { fontSize: 32 },
   body: { flex: 1 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
   hotTag: { fontSize: 14 },
+  star: { fontSize: 20, color: colors.muted, marginRight: 6 },
+  starOn: { color: '#F5A400' },
   listButton: {
     borderWidth: 1,
     borderColor: colors.accent,

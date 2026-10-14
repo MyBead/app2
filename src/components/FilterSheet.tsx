@@ -259,11 +259,11 @@ const styles = StyleSheet.create({
   radio: { fontSize: 18, color: colors.accent, width: 28 },
   radioLabel: { fontSize: 15, color: colors.text },
   applyButton: {
-    backgroundColor: colors.accent,
+    backgroundColor: colors.accentStrong,
     margin: 12,
     borderRadius: 12,
     paddingVertical: 15,
     alignItems: 'center',
   },
-  applyText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
+  applyText: { color: colors.onAccent, fontSize: 16, fontWeight: '700' },
 });

@@ -8,6 +8,7 @@ import { Section, StoreBadge, colors } from '../../components/ui';
 import { categoryInfo } from '../../core/categories';
 import { formatPrice } from '../../core/price';
 import { STORES } from '../../core/stores';
+import { PriceHistoryChart } from '../../components/PriceHistoryChart';
 import { PriceInsightLine } from '../../components/PriceInsightLine';
 import { WatchModal } from '../../components/WatchModal';
 import { itemTextFromDeal } from '../../core/shoppingList';
@@ -16,7 +17,7 @@ import { useShoppingList } from '../../state/ShoppingList';
 
 export default function DealScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { ranked, dealById, prefs, updatePrefs, insightFor, othersFor } = useDeals();
+  const { ranked, dealById, prefs, updatePrefs, insightFor, othersFor, historyFor } = useDeals();
   const list = useShoppingList();
   const [watching, setWatching] = useState(false);
   // Hidden deals aren't in `ranked`, so fall back to the raw list.
@@ -42,7 +43,18 @@ export default function DealScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Stack.Screen options={{ title: store.name }} />
+      <Stack.Screen
+        options={{
+          title: store.name,
+          headerRight: () => (
+            <Pressable onPress={() => list.toggleFavorite(deal.id)} hitSlop={10}>
+              <Text style={{ fontSize: 24, color: list.favorites.includes(deal.id) ? '#F5A400' : colors.muted }}>
+                {list.favorites.includes(deal.id) ? '★' : '☆'}
+              </Text>
+            </Pressable>
+          ),
+        }}
+      />
       {deal.imageUrl ? <Image source={{ uri: deal.imageUrl }} style={styles.image} resizeMode="contain" /> : null}
       <Section title={deal.title}>
         {deal.subtitle ? <Text style={styles.subtitle}>{deal.subtitle}</Text> : null}
@@ -65,6 +77,10 @@ export default function DealScreen() {
           <Text style={styles.line}>★ Совпадает с: {scored.matchedKeywords.join(', ')}</Text>
         ) : null}
         {deal.source === 'demo' ? <Text style={[styles.line, styles.muted]}>Демо-данные: цена примерная.</Text> : null}
+      </Section>
+
+      <Section title="📈 История цены">
+        <PriceHistoryChart entries={historyFor(deal.id)} />
       </Section>
 
       {othersFor(deal.id).length > 0 ? (
@@ -133,7 +149,7 @@ export default function DealScreen() {
 const styles = StyleSheet.create({
   container: { padding: 12 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  image: { width: '100%', height: 220, backgroundColor: '#FFFFFF', borderRadius: 12, marginBottom: 12 },
+  image: { width: '100%', height: 220, backgroundColor: colors.photoBg, borderRadius: 12, marginBottom: 12 },
   subtitle: { fontSize: 15, color: colors.muted },
   priceRow: { flexDirection: 'row', alignItems: 'baseline', gap: 10, marginTop: 12 },
   price: { fontSize: 28, fontWeight: '800', color: colors.text },
@@ -143,11 +159,17 @@ const styles = StyleSheet.create({
   meta: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 14 },
   line: { fontSize: 15, color: colors.text, marginTop: 10 },
   muted: { color: colors.muted },
-  button: { backgroundColor: colors.accent, borderRadius: 10, padding: 14, alignItems: 'center', marginBottom: 10 },
+  button: {
+    backgroundColor: colors.accentStrong,
+    borderRadius: 10,
+    padding: 14,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
   buttonSecondary: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
   otherRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8 },
   otherTitle: { flex: 1, fontSize: 14, color: colors.text },
   otherPrice: { fontSize: 15, fontWeight: '800', color: colors.text },
   cheaper: { color: colors.accent },
-  buttonText: { color: '#FFFFFF', fontWeight: '700', fontSize: 16 },
+  buttonText: { color: colors.onAccent, fontWeight: '700', fontSize: 16 },
 });

@@ -288,6 +288,11 @@ export default function SettingsScreen() {
         hint="Продуктовые акции берутся из газеток на blix.pl, плюс со страниц Lidl и Żabka (там видны и старые цены). Ниже можно указать свою страницу магазина с акциями."
       >
         <SwitchRow
+          label="Скачивать новые газетки только по Wi-Fi (по мобильной сети — из памяти)"
+          value={prefs.wifiOnlyLeaflets}
+          onChange={(wifiOnlyLeaflets) => updatePrefs({ wifiOnlyLeaflets })}
+        />
+        <SwitchRow
           label="Демо-данные вместо сайтов"
           value={prefs.useDemoData}
           onChange={(useDemoData) => updatePrefs({ useDemoData })}
@@ -356,8 +361,8 @@ const styles = StyleSheet.create({
     color: colors.text,
     backgroundColor: colors.bg,
   },
-  addButton: { backgroundColor: colors.accent, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 10 },
-  addButtonText: { color: '#FFFFFF', fontWeight: '700' },
+  addButton: { backgroundColor: colors.accentStrong, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 10 },
+  addButtonText: { color: colors.onAccent, fontWeight: '700' },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8, gap: 12 },
   rowLabel: { flex: 1, fontSize: 15, color: colors.text },
   stepper: { flexDirection: 'row', alignItems: 'center' },
@@ -373,7 +378,7 @@ const styles = StyleSheet.create({
   stepValue: { minWidth: 56, textAlign: 'center', fontSize: 16, fontWeight: '600', color: colors.text },
   buttons: { flexDirection: 'row', gap: 8, marginTop: 8 },
   button: {
-    backgroundColor: colors.accent,
+    backgroundColor: colors.accentStrong,
     borderRadius: 8,
     paddingVertical: 11,
     paddingHorizontal: 14,
@@ -381,7 +386,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   buttonSecondary: { backgroundColor: colors.bg },
-  buttonText: { color: '#FFFFFF', fontWeight: '700', fontSize: 15 },
+  buttonText: { color: colors.onAccent, fontWeight: '700', fontSize: 15 },
   note: { fontSize: 13, color: colors.muted, marginTop: 6 },
   source: { marginTop: 12 },
   sourceHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },

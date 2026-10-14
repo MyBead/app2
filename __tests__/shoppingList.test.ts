@@ -1,4 +1,11 @@
-import { itemTextFromDeal, matchDeals, planList, type ListItem } from '../src/core/shoppingList';
+import {
+  buildShareText,
+  itemTextFromDeal,
+  matchDeals,
+  parseListText,
+  planList,
+  type ListItem,
+} from '../src/core/shoppingList';
 import { DEFAULT_PREFERENCES, type Deal } from '../src/core/types';
 
 const NOW = new Date('2026-10-13T12:00:00');
@@ -116,5 +123,22 @@ describe('itemTextFromDeal', () => {
   it('drops pack sizes and trademark signs', () => {
     expect(itemTextFromDeal(deal('lidl', 'Masło extra Pilos 200 g', 4.99))).toBe('masło extra pilos');
     expect(itemTextFromDeal(deal('lidl', 'LIVARNO® Lampa stojąca LED', 55.9))).toBe('livarno lampa stojąca led');
+  });
+});
+
+describe('share and import', () => {
+  const money = (n?: number) => (n === undefined ? '' : `${n.toFixed(2).replace('.', ',')} zł`);
+  const names = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+  it('round-trips a shared list', () => {
+    const plan = planList([item('masło'), item('kawa'), item('chleb')], DEALS, DEFAULT_PREFERENCES, NOW);
+    const text = buildShareText(plan, names, money);
+    expect(text).toContain('Lidl — 4,99 zł\n• masło — Masło extra Pilos, 4,99 zł');
+    expect(text).toContain('Без акций\n• chleb');
+    expect(parseListText(text).sort()).toEqual(['chleb', 'kawa', 'masło']);
+  });
+
+  it('reads plain lines and comma-separated words', () => {
+    expect(parseListText('Masło\nkawa, jajka\n\n')).toEqual(['masło', 'kawa', 'jajka']);
   });
 });

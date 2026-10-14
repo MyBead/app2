@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { EMPTY_ALERT_STATE, type AlertState, type PriceWatch } from '../core/alerts';
 import type { PriceHistory } from '../core/compare';
 import { EMPTY_NOTIFY_STATE, type NotifyState } from '../core/notify';
-import { DEFAULT_TRIP, type ListItem, type TripOptions } from '../core/shoppingList';
+import { DEFAULT_TRIP, type ListItem, type SavingEntry, type TripOptions } from '../core/shoppingList';
 import { mergePreferences, type Preferences } from '../core/types';
 import type { LeafletCache, StoreResult } from '../providers';
 
@@ -17,6 +17,8 @@ const KEYS = {
   trip: 'okazje/trip/v1',
   watches: 'okazje/watches/v1',
   alerts: 'okazje/alerts/v1',
+  favorites: 'okazje/favorites/v1',
+  savings: 'okazje/savings/v1',
 };
 
 async function readJson<T>(key: string): Promise<T | null> {
@@ -56,3 +58,9 @@ export const saveWatches = (watches: PriceWatch[]) => writeJson(KEYS.watches, wa
 
 export const loadAlertState = async () => (await readJson<AlertState>(KEYS.alerts)) ?? EMPTY_ALERT_STATE;
 export const saveAlertState = (state: AlertState) => writeJson(KEYS.alerts, state);
+
+export const loadFavorites = async () => (await readJson<string[]>(KEYS.favorites)) ?? [];
+export const saveFavorites = (ids: string[]) => writeJson(KEYS.favorites, ids);
+
+export const loadSavings = async () => (await readJson<SavingEntry[]>(KEYS.savings)) ?? [];
+export const saveSavings = (entries: SavingEntry[]) => writeJson(KEYS.savings, entries);

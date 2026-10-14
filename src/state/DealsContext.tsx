@@ -28,6 +28,8 @@ interface DealsState {
   insightFor: (deal: Deal) => PriceInsight;
   /** The same product in other chains right now, cheapest first. */
   othersFor: (dealId: string) => OtherStorePrice[];
+  /** Prices this app has seen for the deal, oldest first. */
+  historyFor: (dealId: string) => PriceHistory[string];
   refresh: () => Promise<void>;
   updatePrefs: (patch: Partial<Preferences> | ((p: Preferences) => Preferences)) => void;
 }
@@ -125,6 +127,7 @@ export function DealsProvider({ children }: { children: ReactNode }) {
   );
 
   const othersFor = useCallback((dealId: string) => others.get(dealId) ?? [], [others]);
+  const historyFor = useCallback((dealId: string) => history[dealId] ?? [], [history]);
 
   const value = useMemo<DealsState | null>(
     () =>
@@ -139,11 +142,25 @@ export function DealsProvider({ children }: { children: ReactNode }) {
             dealById,
             insightFor,
             othersFor,
+            historyFor,
             refresh,
             updatePrefs,
           }
         : null,
-    [ready, prefs, results, ranked, refreshing, lastError, dealById, insightFor, othersFor, refresh, updatePrefs],
+    [
+      ready,
+      prefs,
+      results,
+      ranked,
+      refreshing,
+      lastError,
+      dealById,
+      insightFor,
+      othersFor,
+      historyFor,
+      refresh,
+      updatePrefs,
+    ],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

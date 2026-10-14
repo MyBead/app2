@@ -19,6 +19,8 @@ export interface DealFilter {
   knownSavingOnly: boolean;
   /** Only deals matching favourite products or categories. */
   favoritesOnly: boolean;
+  /** Only deals starred by the user (★). */
+  starredOnly: boolean;
   sort: SortId;
 }
 
@@ -29,6 +31,7 @@ export const EMPTY_FILTER: DealFilter = {
   categories: [],
   knownSavingOnly: false,
   favoritesOnly: false,
+  starredOnly: false,
   sort: 'score',
 };
 
@@ -58,7 +61,8 @@ export function activeFilterCount(f: DealFilter): number {
     (f.categories.length ? 1 : 0) +
     (f.minPrice !== undefined || f.maxPrice !== undefined ? 1 : 0) +
     (f.knownSavingOnly ? 1 : 0) +
-    (f.favoritesOnly ? 1 : 0)
+    (f.favoritesOnly ? 1 : 0) +
+    (f.starredOnly ? 1 : 0)
   );
 }
 
@@ -66,6 +70,7 @@ export function applyFilter(
   items: ScoredDeal[],
   f: DealFilter,
   insightFor: (s: ScoredDeal) => PriceInsight,
+  isStarred: (dealId: string) => boolean = () => false,
 ): ScoredDeal[] {
   const q = f.query.trim();
   const savings = new Map<string, number>();
@@ -82,6 +87,7 @@ export function applyFilter(
     if (f.minPrice !== undefined && (d.price ?? 0) < f.minPrice) return false;
     if (f.maxPrice !== undefined && (d.price ?? Infinity) > f.maxPrice) return false;
     if (f.favoritesOnly && !s.matchedKeywords.length && !s.favoriteCategory) return false;
+    if (f.starredOnly && !isStarred(d.id)) return false;
     if (q && !matchesSearch(`${d.title} ${d.subtitle ?? ''}`, q)) return false;
     if (f.knownSavingOnly && saving(s) <= 0 && s.discount <= 0) return false;
     return true;
