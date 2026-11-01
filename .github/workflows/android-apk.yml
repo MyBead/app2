@@ -6,7 +6,7 @@ name: Android APK
 on:
   push:
     branches: ['**']
-    paths-ignore: ['**.md', 'scripts/**', '.github/workflows/probe-sources.yml']
+    paths-ignore: ['**.md', 'scripts/**', 'focus/**', '.github/workflows/probe-sources.yml', '.github/workflows/fokus-apk.yml']
   workflow_dispatch:
 
 concurrency:

@@ -53,7 +53,8 @@
     "preset": "jest-expo",
     "testPathIgnorePatterns": [
       "/node_modules/",
-      "/__tests__/fixtures/"
+      "/__tests__/fixtures/",
+      "/focus/"
     ]
   }
 }

@@ -1,0 +1,46 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!-- "Тишина": turns on Do Not Disturb with calls allowed. -->
+  <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
+  <!-- Summary "focus is over, N notifications were hidden". -->
+  <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+  <!-- Ends the focus session on time; without the grant the end may be a few minutes late. -->
+  <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+
+  <!-- Lets the app list launchable apps for per-app blocking and open them from the "missed" list. -->
+  <queries>
+    <intent>
+      <action android:name="android.intent.action.MAIN" />
+      <category android:name="android.intent.category.LAUNCHER" />
+    </intent>
+  </queries>
+
+  <application>
+    <service
+      android:name="expo.modules.fokus.FocusListenerService"
+      android:exported="true"
+      android:label="Фокус"
+      android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+      <intent-filter>
+        <action android:name="android.service.notification.NotificationListenerService" />
+      </intent-filter>
+    </service>
+
+    <service
+      android:name="expo.modules.fokus.FocusTileService"
+      android:exported="true"
+      android:icon="@drawable/fokus_tile"
+      android:label="Фокус"
+      android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+      <intent-filter>
+        <action android:name="android.service.quicksettings.action.QS_TILE" />
+      </intent-filter>
+      <meta-data
+        android:name="android.service.quicksettings.TOGGLEABLE_TILE"
+        android:value="true" />
+    </service>
+
+    <receiver
+      android:name="expo.modules.fokus.FocusAlarmReceiver"
+      android:exported="false" />
+  </application>
+</manifest>
