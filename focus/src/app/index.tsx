@@ -14,6 +14,7 @@ import {
   isAppBlocked,
   orderApps,
   plural,
+  SHORTS_MODES,
   toggleApp,
   toggleGroup,
 } from '../core/focus';
@@ -90,7 +91,8 @@ export default function FocusScreen() {
               'Если переключатель серый (так Android защищает приложения не из Play Маркета):\n' +
               '1) нажмите на серый переключатель — появится «Ограниченная настройка», нажмите ОК;\n' +
               '2) «Настройки приложения» → ⋮ вверху справа → «Разрешить ограниченные настройки»;\n' +
-              '3) вернитесь в «Открыть доступ» и включите.'
+              '3) вернитесь в «Открыть доступ» и включите.\n\n' +
+              'Если в меню ⋮ такого пункта нет: удалите «Фокус» и установите APK через приложение SAI из Play Маркета.'
             }
             action="Открыть доступ"
             onAction={() => native.openListenerSettings()}
@@ -150,6 +152,36 @@ export default function FocusScreen() {
             <Text style={styles.small}>Новая длительность — со следующего включения.</Text>
           ) : null}
         </View>
+
+        <Card
+          title="▶️ YouTube Shorts"
+          hint="Shorts закрываются сразу, как только открылись: из вкладки Shorts, из ленты или по ссылке. Обычные видео работают как раньше."
+        >
+          <Chips>
+            {SHORTS_MODES.map((m) => (
+              <Chip
+                key={m.id}
+                label={m.label}
+                selected={config.shorts === m.id}
+                onPress={() => setConfig({ ...config, shorts: m.id })}
+              />
+            ))}
+          </Chips>
+          {config.shorts !== 'off' && !state.accessibilityEnabled ? (
+            <>
+              <Text style={styles.small}>
+                Нужно один раз включить службу «Фокус: без Shorts» в спец. возможностях. Она видит только окна YouTube.
+                Если переключатель серый — то же ограничение, что и с доступом к уведомлениям (см. выше).
+              </Text>
+              <Button label="Включить блокировку Shorts" onPress={() => native.openAccessibilitySettings()} />
+            </>
+          ) : null}
+          {config.shorts !== 'off' && state.accessibilityEnabled ? (
+            <Text style={styles.small}>
+              ✅ Работает{state.shortsBlocked ? ` · закрыто Shorts: ${state.shortsBlocked}` : ''}
+            </Text>
+          ) : null}
+        </Card>
 
         <Card
           title="Что скрывать"

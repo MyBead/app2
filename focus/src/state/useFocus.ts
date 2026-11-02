@@ -17,6 +17,8 @@ const EMPTY: FocusState = {
   startedAt: 0,
   sessionHidden: 0,
   listenerEnabled: false,
+  accessibilityEnabled: false,
+  shortsBlocked: 0,
   dndAccess: false,
   exactAlarms: true,
   canAddTile: false,

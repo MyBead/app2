@@ -70,6 +70,17 @@ class FokusModule : Module() {
       if (detail == null || !tryLaunch(detail)) launch(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
     }
 
+    Function("openAccessibilitySettings") {
+      val component = ComponentName(context, ShortsBlockerService::class.java)
+      val detail = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        Intent("android.settings.ACCESSIBILITY_DETAILS_SETTINGS")
+          .putExtra(Intent.EXTRA_COMPONENT_NAME, component.flattenToString())
+      } else {
+        null
+      }
+      if (detail == null || !tryLaunch(detail)) launch(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+    }
+
     Function("openDndSettings") {
       launch(Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS))
     }
@@ -124,6 +135,8 @@ class FokusModule : Module() {
       .put("startedAt", FocusStore.startedAt(ctx))
       .put("sessionHidden", FocusStore.sessionHidden(ctx))
       .put("listenerEnabled", FocusStore.listenerEnabled(ctx))
+      .put("accessibilityEnabled", FocusStore.accessibilityEnabled(ctx))
+      .put("shortsBlocked", FocusStore.shortsBlocked(ctx))
       .put("dndAccess", FocusStore.hasDndAccess(ctx))
       .put("exactAlarms", exact)
       .put("canAddTile", Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)

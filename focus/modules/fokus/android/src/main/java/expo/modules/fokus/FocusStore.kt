@@ -31,6 +31,10 @@ object FocusStore {
   const val CALLERS_CONTACTS = "contacts"
   const val CALLERS_STARRED = "starred"
 
+  const val SHORTS_OFF = "off"
+  const val SHORTS_FOCUS = "focus"
+  const val SHORTS_ALWAYS = "always"
+
   /** Called whenever the state changes (the app screen subscribes while it is open). */
   private val listeners = mutableSetOf<() -> Unit>()
 
@@ -54,6 +58,8 @@ object FocusStore {
     val callers: String,
     val repeatCallers: Boolean,
     val minutes: Int,
+    /** YouTube Shorts: "off", "focus" (only during focus) or "always". */
+    val shorts: String,
   )
 
   fun config(ctx: Context): Config {
@@ -73,6 +79,7 @@ object FocusStore {
       callers = p.getString("callers", CALLERS_ANY) ?: CALLERS_ANY,
       repeatCallers = p.getBoolean("repeatCallers", true),
       minutes = p.getInt("minutes", 0),
+      shorts = p.getString("shorts", SHORTS_ALWAYS) ?: SHORTS_ALWAYS,
     )
   }
 
@@ -83,6 +90,7 @@ object FocusStore {
     .put("callers", c.callers)
     .put("repeatCallers", c.repeatCallers)
     .put("minutes", c.minutes)
+    .put("shorts", c.shorts)
 
   fun saveConfig(ctx: Context, json: JSONObject) {
     val e = prefs(ctx).edit()
@@ -92,6 +100,7 @@ object FocusStore {
     if (json.has("callers")) e.putString("callers", json.getString("callers"))
     if (json.has("repeatCallers")) e.putBoolean("repeatCallers", json.getBoolean("repeatCallers"))
     if (json.has("minutes")) e.putInt("minutes", json.getInt("minutes"))
+    if (json.has("shorts")) e.putString("shorts", json.getString("shorts"))
     e.apply()
     // Settings changed mid-session: apply them right away.
     if (isActive(ctx)) {
@@ -344,6 +353,29 @@ object FocusStore {
   }
 
   // ---------- permissions ----------
+
+  fun accessibilityEnabled(ctx: Context): Boolean {
+    val flat = Settings.Secure.getString(ctx.contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES) ?: return false
+    val me = ComponentName(ctx, ShortsBlockerService::class.java)
+    return flat.split(":").any { ComponentName.unflattenFromString(it) == me }
+  }
+
+  // ---------- YouTube Shorts ----------
+
+  /** Whether Shorts should be closed right now. */
+  fun shortsBlockingNow(ctx: Context): Boolean = when (prefs(ctx).getString("shorts", SHORTS_ALWAYS)) {
+    SHORTS_ALWAYS -> true
+    SHORTS_FOCUS -> isActive(ctx)
+    else -> false
+  }
+
+  fun shortsBlocked(ctx: Context): Int = prefs(ctx).getInt("shortsBlocked", 0)
+
+  fun countShortsBlocked(ctx: Context) {
+    val p = prefs(ctx)
+    p.edit().putInt("shortsBlocked", p.getInt("shortsBlocked", 0) + 1).apply()
+    changed(ctx)
+  }
 
   fun listenerEnabled(ctx: Context): Boolean {
     val flat = Settings.Secure.getString(ctx.contentResolver, "enabled_notification_listeners") ?: return false

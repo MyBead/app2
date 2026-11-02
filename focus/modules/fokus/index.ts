@@ -13,6 +13,7 @@ declare class FokusNative extends NativeModule<FokusEvents> {
   getApps(): Promise<string>;
   openApp(pkg: string): boolean;
   openListenerSettings(): void;
+  openAccessibilitySettings(): void;
   openDndSettings(): void;
   openAppSettings(): void;
   openExactAlarmSettings(): void;

@@ -2,6 +2,7 @@
 
 export type Group = 'messengers' | 'social' | 'mail' | 'shopping' | 'games' | 'sms' | 'other';
 export type Callers = 'any' | 'contacts' | 'starred';
+export type ShortsMode = 'always' | 'focus' | 'off';
 
 export interface FocusConfig {
   blockedGroups: Group[];
@@ -13,6 +14,8 @@ export interface FocusConfig {
   repeatCallers: boolean;
   /** Session length; 0 = until turned off. */
   minutes: number;
+  /** YouTube Shorts: closed always, only during focus, or never. */
+  shorts: ShortsMode;
 }
 
 export interface FocusState {
@@ -21,6 +24,8 @@ export interface FocusState {
   startedAt: number;
   sessionHidden: number;
   listenerEnabled: boolean;
+  accessibilityEnabled: boolean;
+  shortsBlocked: number;
   dndAccess: boolean;
   exactAlarms: boolean;
   canAddTile: boolean;
@@ -60,6 +65,12 @@ export const DURATIONS: { minutes: number; label: string }[] = [
   { minutes: 0, label: 'Пока не выключу' },
 ];
 
+export const SHORTS_MODES: { id: ShortsMode; label: string }[] = [
+  { id: 'always', label: 'Всегда' },
+  { id: 'focus', label: 'Во время фокуса' },
+  { id: 'off', label: 'Не блокировать' },
+];
+
 export const CALLERS: { id: Callers; label: string }[] = [
   { id: 'any', label: 'Все' },
   { id: 'contacts', label: 'Контакты' },
@@ -73,6 +84,7 @@ export const DEFAULT_CONFIG: FocusConfig = {
   callers: 'any',
   repeatCallers: true,
   minutes: 0,
+  shorts: 'always',
 };
 
 export function groupLabel(id: Group): string {

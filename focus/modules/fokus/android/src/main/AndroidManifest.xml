@@ -39,6 +39,20 @@
         android:value="true" />
     </service>
 
+    <!-- Closes YouTube Shorts as soon as they open. -->
+    <service
+      android:name="expo.modules.fokus.ShortsBlockerService"
+      android:exported="true"
+      android:label="Фокус: без Shorts"
+      android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+      <intent-filter>
+        <action android:name="android.accessibilityservice.AccessibilityService" />
+      </intent-filter>
+      <meta-data
+        android:name="android.accessibilityservice"
+        android:resource="@xml/fokus_shorts_service" />
+    </service>
+
     <receiver
       android:name="expo.modules.fokus.FocusAlarmReceiver"
       android:exported="false" />
