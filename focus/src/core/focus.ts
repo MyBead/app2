@@ -16,6 +16,39 @@ export interface FocusConfig {
   minutes: number;
   /** YouTube Shorts: closed always, only during focus, or never. */
   shorts: ShortsMode;
+  // What gets through besides calls (Do Not Disturb categories).
+  allowMessages: boolean;
+  allowConversations: boolean;
+  allowReminders: boolean;
+  allowAlarms: boolean;
+  allowMedia: boolean;
+  /** Blocked notifications are hidden completely until focus ends, not just silenced. */
+  hideFully: boolean;
+}
+
+export type AllowKey = 'allowMessages' | 'allowConversations' | 'allowReminders' | 'allowAlarms' | 'allowMedia';
+
+/** One-tap chips in "Что блокировать": a selected chip means "blocked". */
+export const BLOCK_OPTIONS: { key: AllowKey; label: string; hint: string }[] = [
+  { key: 'allowMessages', label: '💬 Сообщения и мессенджеры', hint: 'SMS, Telegram, WhatsApp, Viber…' },
+  { key: 'allowConversations', label: '⭐ Важные чаты', hint: 'чаты, отмеченные в Android как «Важные»' },
+  { key: 'allowReminders', label: '📅 Напоминания и календарь', hint: '' },
+  { key: 'allowAlarms', label: '⏰ Будильники и таймеры', hint: '' },
+  { key: 'allowMedia', label: '🎵 Звук видео и музыки', hint: '' },
+];
+
+export function isBlocked(config: FocusConfig, key: AllowKey): boolean {
+  return !config[key];
+}
+
+/** One tap on a "what to block" chip. */
+export function toggleBlocked(config: FocusConfig, key: AllowKey): FocusConfig {
+  return { ...config, [key]: !config[key] };
+}
+
+/** Chips that make sense right now ("important chats" only matters while messages are blocked). */
+export function visibleBlockOptions(config: FocusConfig) {
+  return BLOCK_OPTIONS.filter((o) => o.key !== 'allowConversations' || !config.allowMessages);
 }
 
 export interface FocusState {
@@ -85,7 +118,16 @@ export const DEFAULT_CONFIG: FocusConfig = {
   repeatCallers: true,
   minutes: 0,
   shorts: 'always',
+  allowMessages: false,
+  allowConversations: false,
+  allowReminders: true,
+  allowAlarms: true,
+  allowMedia: true,
+  hideFully: true,
 };
+
+/** One-time unlock of Android's "restricted settings" for this app (run in an ADB shell). */
+export const UNLOCK_COMMAND = 'appops set pl.fokus.app ACCESS_RESTRICTED_SETTINGS allow';
 
 export function groupLabel(id: Group): string {
   return GROUPS.find((g) => g.id === id)?.label ?? id;

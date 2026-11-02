@@ -6,17 +6,21 @@ import { Banner, Button, Card, Chip, Chips, ToggleRow } from '../components/ui';
 import {
   CALLERS,
   DURATIONS,
+  UNLOCK_COMMAND,
   GROUPS,
   formatClock,
   formatLeft,
   groupLabel,
   groupMissed,
   isAppBlocked,
+  isBlocked,
   orderApps,
   plural,
   SHORTS_MODES,
   toggleApp,
+  toggleBlocked,
   toggleGroup,
+  visibleBlockOptions,
 } from '../core/focus';
 import { useFocus } from '../state/useFocus';
 import { colors } from '../theme';
@@ -30,6 +34,7 @@ export default function FocusScreen() {
   const [query, setQuery] = useState('');
   const [openMissed, setOpenMissed] = useState<string | null>(null);
   const [tileNote, setTileNote] = useState<string | null>(null);
+  const [showUnlock, setShowUnlock] = useState(false);
 
   if (!native) {
     return (
@@ -52,8 +57,8 @@ export default function FocusScreen() {
       native.stop();
       return;
     }
-    if (!state.listenerEnabled) {
-      native.openListenerSettings();
+    if (!state.dndAccess && !state.listenerEnabled) {
+      native.openDndSettings();
       return;
     }
     // Android 13+: allow the "focus is over, N hidden" summary (asked once).
@@ -77,34 +82,21 @@ export default function FocusScreen() {
   const missed = groupMissed(log);
   const list = apps ? orderApps(apps, log, query) : [];
   const left = state.active && state.until > 0 ? state.until - now : 0;
+  // Per-app blocking and Shorts need Android's "restricted settings", which this phone may refuse.
+  const advanced = state.listenerEnabled;
 
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'left', 'right']}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={styles.h1}>Фокус</Text>
 
-        {!state.listenerEnabled ? (
+        {!state.dndAccess ? (
           <Banner
-            title="Один раз: доступ к уведомлениям"
+            title="Один раз: доступ к «Не беспокоить»"
             text={
-              'Включите «Фокус» в списке «Доступ к уведомлениям». Без этого Android не даёт скрывать чужие уведомления.\n\n' +
-              'Если переключатель серый (так Android защищает приложения не из Play Маркета):\n' +
-              '1) нажмите на серый переключатель — появится «Ограниченная настройка», нажмите ОК;\n' +
-              '2) «Настройки приложения» → ⋮ вверху справа → «Разрешить ограниченные настройки»;\n' +
-              '3) вернитесь в «Открыть доступ» и включите.\n\n' +
-              'Если в меню ⋮ такого пункта нет: удалите «Фокус» и установите APK через приложение SAI из Play Маркета.'
+              'Найдите «Фокус» в списке «Доступ к режиму Не беспокоить» и включите. ' +
+              'Это обычное разрешение — Android не блокирует его для приложений не из Play Маркета.'
             }
-            action="Открыть доступ"
-            onAction={() => native.openListenerSettings()}
-            secondary="Настройки приложения"
-            onSecondary={() => native.openAppSettings()}
-          />
-        ) : null}
-
-        {state.listenerEnabled && config.silence && !state.dndAccess ? (
-          <Banner
-            title="Нужен доступ к «Не беспокоить»"
-            text="Для режима «Тишина» включите «Фокус» в списке. Скрытие выбранных приложений работает и без этого."
             action="Открыть"
             onAction={() => native.openDndSettings()}
           />
@@ -133,7 +125,11 @@ export default function FocusScreen() {
             {state.active
               ? [
                   state.until > 0 ? `до ${formatClock(state.until)} · осталось ${formatLeft(left)}` : 'до выключения',
-                  `скрыто ${state.sessionHidden} ${plural(state.sessionHidden, NOTIFICATIONS)}`,
+                  advanced
+                    ? `скрыто ${state.sessionHidden} ${plural(state.sessionHidden, NOTIFICATIONS)}`
+                    : config.hideFully
+                      ? 'заблокированное появится, когда фокус закончится'
+                      : 'заблокированное приходит без звука',
                 ].join('\n')
               : '📞 Звонки проходят всегда'}
           </Text>
@@ -148,181 +144,208 @@ export default function FocusScreen() {
               />
             ))}
           </Chips>
-          {state.active && config.minutes !== Math.round((state.until - state.startedAt) / 60_000) ? (
+          {state.active &&
+          config.minutes !== (state.until > 0 ? Math.round((state.until - state.startedAt) / 60_000) : 0) ? (
             <Text style={styles.small}>Новая длительность — со следующего включения.</Text>
           ) : null}
         </View>
 
-        <Card
-          title="▶️ YouTube Shorts"
-          hint="Shorts закрываются сразу, как только открылись: из вкладки Shorts, из ленты или по ссылке. Обычные видео работают как раньше."
-        >
+        <Card title="Что блокировать" hint="Одно касание — переключить. Выделенное блокируется на время фокуса.">
           <Chips>
-            {SHORTS_MODES.map((m) => (
+            <Chip label="📞 Звонки — проходят всегда" selected={false} disabled />
+            <Chip label="🔕 Соцсети, почта, игры, магазины, остальное" selected disabled />
+            {visibleBlockOptions(config).map((o) => (
               <Chip
-                key={m.id}
-                label={m.label}
-                selected={config.shorts === m.id}
-                onPress={() => setConfig({ ...config, shorts: m.id })}
+                key={o.key}
+                label={o.label}
+                selected={isBlocked(config, o.key)}
+                onPress={() => setConfig(toggleBlocked(config, o.key))}
               />
             ))}
           </Chips>
-          {config.shorts !== 'off' && !state.accessibilityEnabled ? (
-            <>
-              <Text style={styles.small}>
-                Нужно один раз включить службу «Фокус: без Shorts» в спец. возможностях. Она видит только окна YouTube.
-                Если переключатель серый — то же ограничение, что и с доступом к уведомлениям (см. выше).
-              </Text>
-              <Button label="Включить блокировку Shorts" onPress={() => native.openAccessibilitySettings()} />
-            </>
-          ) : null}
-          {config.shorts !== 'off' && state.accessibilityEnabled ? (
-            <Text style={styles.small}>
-              ✅ Работает{state.shortsBlocked ? ` · закрыто Shorts: ${state.shortsBlocked}` : ''}
-            </Text>
-          ) : null}
+          <Text style={styles.small}>
+            «Сообщения» — это SMS и мессенджеры (Telegram, WhatsApp…). «Важные чаты» — те, что вы отметили в Android как
+            важные (долгое нажатие на уведомление чата → «Важный»).
+          </Text>
+          <Text style={styles.label}>Как блокировать</Text>
+          <Chips>
+            <Chip
+              label="Скрыть совсем"
+              selected={config.hideFully}
+              onPress={() => setConfig({ ...config, hideFully: true })}
+            />
+            <Chip
+              label="Только без звука"
+              selected={!config.hideFully}
+              onPress={() => setConfig({ ...config, hideFully: false })}
+            />
+          </Chips>
+          <Text style={styles.small}>
+            {config.hideFully
+              ? 'Ни звука, ни значка, ни строки в шторке. Всё появится, когда фокус закончится — ничего не теряется.'
+              : 'Уведомления видны в шторке, но не звенят и не всплывают.'}
+          </Text>
         </Card>
 
-        <Card
-          title="Что скрывать"
-          hint="Одно касание — включить или выключить. Звонки, будильники и навигация не скрываются никогда."
-        >
+        <Card title="📞 Чьи звонки пропускать">
           <Chips>
-            <Chip label="📞 Звонки — проходят" selected={false} disabled />
-            {GROUPS.map((g) => (
+            {CALLERS.map((c) => (
               <Chip
-                key={g.id}
-                label={`${g.emoji} ${g.label}`}
-                selected={config.blockedGroups.includes(g.id)}
-                onPress={() => setConfig(toggleGroup(config, g.id))}
+                key={c.id}
+                label={c.label}
+                selected={config.callers === c.id}
+                onPress={() => setConfig({ ...config, callers: c.id })}
               />
             ))}
           </Chips>
-          <Text style={styles.small}>Выделенные скрываются, пока включён фокус, и попадают в «Пропущенное».</Text>
-        </Card>
-
-        <Card>
           <ToggleRow
-            label="🔇 Тишина для остального"
-            hint="Всё, что не скрыто, приходит без звука и всплывающих окон. Звонят только звонки и будильники."
-            value={config.silence}
-            onChange={(silence) => setConfig({ ...config, silence })}
+            label="Повторный звонок"
+            hint="Если тот же номер звонит снова в течение 15 минут — пропустить, даже если он не в списке."
+            value={config.repeatCallers}
+            onChange={(repeatCallers) => setConfig({ ...config, repeatCallers })}
           />
-          {config.silence ? (
+        </Card>
+
+        <Card title="▶️ YouTube Shorts">
+          {state.accessibilityEnabled ? (
             <>
-              <Text style={styles.label}>Чьи звонки пропускать</Text>
               <Chips>
-                {CALLERS.map((c) => (
+                {SHORTS_MODES.map((m) => (
                   <Chip
-                    key={c.id}
-                    label={c.label}
-                    selected={config.callers === c.id}
-                    onPress={() => setConfig({ ...config, callers: c.id })}
+                    key={m.id}
+                    label={m.label}
+                    selected={config.shorts === m.id}
+                    onPress={() => setConfig({ ...config, shorts: m.id })}
                   />
                 ))}
               </Chips>
-              <ToggleRow
-                label="Повторный звонок"
-                hint="Если тот же номер звонит снова в течение 15 минут — пропустить, даже если он не в списке."
-                value={config.repeatCallers}
-                onChange={(repeatCallers) => setConfig({ ...config, repeatCallers })}
-              />
+              <Text style={styles.small}>
+                {config.shorts === 'off'
+                  ? 'Shorts не блокируются.'
+                  : `✅ Shorts закрываются сразу, как только открылись${state.shortsBlocked ? ` · закрыто: ${state.shortsBlocked}` : ''}`}
+              </Text>
             </>
           ) : (
             <Text style={styles.small}>
-              Без «Тишины» скрытые приложения иногда успевают коротко пикнуть, прежде чем уведомление исчезнет.
+              Чтобы закрывать Shorts, приложению нужны «спец. возможности», а Android на этом телефоне не даёт их
+              приложениям не из Play Маркета. Включается один раз через «Разблокировку» ниже.
             </Text>
           )}
         </Card>
 
-        <Card title="Отдельные приложения" hint="Касание переключает: скрывать или пропускать — независимо от группы.">
-          {!showApps ? (
-            <Button
-              label="Выбрать приложения"
-              subtle
-              onPress={() => {
-                setShowApps(true);
-                loadApps();
-              }}
-            />
-          ) : (
-            <>
-              <TextInput
-                value={query}
-                onChangeText={setQuery}
-                placeholder="Поиск приложения"
-                placeholderTextColor={colors.muted}
-                style={styles.input}
-              />
-              {apps === null ? <Text style={styles.small}>Загрузка…</Text> : null}
-              {list.map((app) => {
-                const blocked = isAppBlocked(config, app);
-                const own = config.apps[app.pkg] !== undefined;
-                return (
-                  <Pressable
-                    key={app.pkg}
-                    onPress={() => setConfig(toggleApp(config, app))}
-                    style={({ pressed }) => [styles.appRow, pressed && { opacity: 0.6 }]}
-                    accessibilityRole="switch"
-                    accessibilityState={{ checked: blocked }}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.appName}>{app.label}</Text>
-                      <Text style={styles.small}>
-                        {groupLabel(app.group)}
-                        {own ? ' · выбрано вручную' : ''}
-                      </Text>
-                    </View>
-                    <Text style={[styles.badge, blocked ? styles.badgeOff : styles.badgeOn]}>
-                      {blocked ? 'скрывать' : 'пропускать'}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </>
-          )}
-        </Card>
-
-        <Card
-          title={`Пропущенное${log.length ? ` · ${log.length}` : ''}`}
-          hint={
-            missed.length ? 'Скрытые уведомления. Касание — показать, «Открыть» — перейти в приложение.' : undefined
-          }
-        >
-          {missed.length === 0 ? (
-            <Text style={styles.small}>Пока пусто. Здесь появится то, что «Фокус» скрыл.</Text>
-          ) : (
-            <>
-              {missed.map((g) => (
-                <View key={g.pkg} style={styles.missed}>
-                  <Pressable
-                    style={styles.missedHead}
-                    onPress={() => setOpenMissed(openMissed === g.pkg ? null : g.pkg)}
-                  >
-                    <Text style={[styles.appName, { flex: 1 }]}>
-                      {g.app} <Text style={styles.count}>{g.count}</Text>
-                    </Text>
-                    <Text style={styles.small}>{formatClock(g.last)}</Text>
-                    <Pressable onPress={() => native.openApp(g.pkg)} hitSlop={8}>
-                      <Text style={styles.link}>Открыть</Text>
-                    </Pressable>
-                  </Pressable>
-                  {(openMissed === g.pkg ? g.items : g.items.slice(0, 1)).map((item) => (
-                    <Text
-                      key={`${item.key}-${item.time}`}
-                      style={styles.missedItem}
-                      numberOfLines={openMissed === g.pkg ? 4 : 1}
-                    >
-                      <Text style={{ fontWeight: '600' }}>{item.title}</Text>
-                      {item.text ? ` — ${item.text}` : ''}
-                    </Text>
-                  ))}
-                </View>
+        {advanced ? (
+          <Card
+            title="Отдельные группы приложений"
+            hint="Работает вместе с разблокировкой: выделенные скрываются и попадают в «Пропущенное»."
+          >
+            <Chips>
+              {GROUPS.map((g) => (
+                <Chip
+                  key={g.id}
+                  label={`${g.emoji} ${g.label}`}
+                  selected={config.blockedGroups.includes(g.id)}
+                  onPress={() => setConfig(toggleGroup(config, g.id))}
+                />
               ))}
-              <Button label="Очистить" subtle onPress={() => native.clearLog()} />
-            </>
-          )}
-        </Card>
+            </Chips>
+          </Card>
+        ) : null}
+
+        {advanced ? (
+          <>
+            <Card
+              title="Отдельные приложения"
+              hint="Касание переключает: скрывать или пропускать — независимо от группы."
+            >
+              {!showApps ? (
+                <Button
+                  label="Выбрать приложения"
+                  subtle
+                  onPress={() => {
+                    setShowApps(true);
+                    loadApps();
+                  }}
+                />
+              ) : (
+                <>
+                  <TextInput
+                    value={query}
+                    onChangeText={setQuery}
+                    placeholder="Поиск приложения"
+                    placeholderTextColor={colors.muted}
+                    style={styles.input}
+                  />
+                  {apps === null ? <Text style={styles.small}>Загрузка…</Text> : null}
+                  {list.map((app) => {
+                    const blocked = isAppBlocked(config, app);
+                    const own = config.apps[app.pkg] !== undefined;
+                    return (
+                      <Pressable
+                        key={app.pkg}
+                        onPress={() => setConfig(toggleApp(config, app))}
+                        style={({ pressed }) => [styles.appRow, pressed && { opacity: 0.6 }]}
+                        accessibilityRole="switch"
+                        accessibilityState={{ checked: blocked }}
+                      >
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.appName}>{app.label}</Text>
+                          <Text style={styles.small}>
+                            {groupLabel(app.group)}
+                            {own ? ' · выбрано вручную' : ''}
+                          </Text>
+                        </View>
+                        <Text style={[styles.badge, blocked ? styles.badgeOff : styles.badgeOn]}>
+                          {blocked ? 'скрывать' : 'пропускать'}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </>
+              )}
+            </Card>
+
+            <Card
+              title={`Пропущенное${log.length ? ` · ${log.length}` : ''}`}
+              hint={
+                missed.length ? 'Скрытые уведомления. Касание — показать, «Открыть» — перейти в приложение.' : undefined
+              }
+            >
+              {missed.length === 0 ? (
+                <Text style={styles.small}>Пока пусто. Здесь появится то, что «Фокус» скрыл.</Text>
+              ) : (
+                <>
+                  {missed.map((g) => (
+                    <View key={g.pkg} style={styles.missed}>
+                      <Pressable
+                        style={styles.missedHead}
+                        onPress={() => setOpenMissed(openMissed === g.pkg ? null : g.pkg)}
+                      >
+                        <Text style={[styles.appName, { flex: 1 }]}>
+                          {g.app} <Text style={styles.count}>{g.count}</Text>
+                        </Text>
+                        <Text style={styles.small}>{formatClock(g.last)}</Text>
+                        <Pressable onPress={() => native.openApp(g.pkg)} hitSlop={8}>
+                          <Text style={styles.link}>Открыть</Text>
+                        </Pressable>
+                      </Pressable>
+                      {(openMissed === g.pkg ? g.items : g.items.slice(0, 1)).map((item) => (
+                        <Text
+                          key={`${item.key}-${item.time}`}
+                          style={styles.missedItem}
+                          numberOfLines={openMissed === g.pkg ? 4 : 1}
+                        >
+                          <Text style={{ fontWeight: '600' }}>{item.title}</Text>
+                          {item.text ? ` — ${item.text}` : ''}
+                        </Text>
+                      ))}
+                    </View>
+                  ))}
+                  <Button label="Очистить" subtle onPress={() => native.clearLog()} />
+                </>
+              )}
+            </Card>
+          </>
+        ) : null}
 
         <Card
           title="Включать из шторки"
@@ -338,6 +361,38 @@ export default function FocusScreen() {
             </Pressable>
           ) : null}
         </Card>
+
+        {!(state.listenerEnabled && state.accessibilityEnabled) ? (
+          <Card
+            title="🔓 Разблокировка: Shorts и выбор приложений"
+            hint="По желанию. Android закрывает эти функции для приложений не из Play Маркета, а меню «Разрешить ограниченные настройки» на этом телефоне нет. Снять запрет можно один раз, без компьютера, через беспроводную отладку."
+          >
+            {!showUnlock ? (
+              <Button label="Как разблокировать" subtle onPress={() => setShowUnlock(true)} />
+            ) : (
+              <>
+                <Text style={styles.text}>
+                  1. Настройки → Об устройстве → Версия → 7 раз нажмите «Номер сборки». Появится «Для разработчиков».
+                  {'\n'}2. Настройки → Система → Для разработчиков → включите «Отладка по Wi‑Fi» (беспроводная отладка).
+                  {'\n'}3. Установите aShell You (github.com/DP-Hridayan/aShellYou → Releases) и подключитесь в нём по
+                  беспроводной отладке — приложение подскажет, как ввести код сопряжения.
+                  {'\n'}4. Выполните в нём команду (долгое нажатие — скопировать):
+                </Text>
+                <Text selectable style={styles.code}>
+                  {UNLOCK_COMMAND}
+                </Text>
+                <Text style={styles.text}>5. Вернитесь сюда и включите доступы — переключатели станут активными:</Text>
+                <Button label="Доступ к уведомлениям" subtle onPress={() => native.openListenerSettings()} />
+                <Button
+                  label="Спец. возможности → «Фокус: без Shorts»"
+                  subtle
+                  onPress={() => native.openAccessibilitySettings()}
+                />
+                <Text style={styles.small}>Отладку по Wi‑Fi после этого можно выключить.</Text>
+              </>
+            )}
+          </Card>
+        ) : null}
       </ScrollView>
     </SafeAreaView>
   );
@@ -401,4 +456,12 @@ const styles = StyleSheet.create({
   missedItem: { fontSize: 14, color: colors.text, lineHeight: 19 },
   count: { color: colors.accent, fontWeight: '800' },
   link: { color: colors.accent, fontWeight: '700', fontSize: 14 },
+  code: {
+    fontFamily: Platform.OS === 'android' ? 'monospace' : 'Menlo',
+    fontSize: 14,
+    color: colors.text,
+    backgroundColor: colors.bg,
+    borderRadius: 10,
+    padding: 12,
+  },
 });

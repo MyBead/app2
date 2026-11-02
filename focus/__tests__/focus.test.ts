@@ -3,6 +3,9 @@ import {
   formatLeft,
   groupMissed,
   isAppBlocked,
+  isBlocked,
+  toggleBlocked,
+  visibleBlockOptions,
   orderApps,
   parseJson,
   plural,
@@ -97,5 +100,26 @@ describe('formatting', () => {
   it('bad JSON falls back', () => {
     expect(parseJson('{', 1)).toBe(1);
     expect(parseJson(null, [])).toEqual([]);
+  });
+});
+
+describe('what to block (Do Not Disturb)', () => {
+  it('blocks messages and lets reminders, alarms and media through by default', () => {
+    expect(isBlocked(DEFAULT_CONFIG, 'allowMessages')).toBe(true);
+    expect(isBlocked(DEFAULT_CONFIG, 'allowReminders')).toBe(false);
+    expect(isBlocked(DEFAULT_CONFIG, 'allowAlarms')).toBe(false);
+    expect(isBlocked(DEFAULT_CONFIG, 'allowMedia')).toBe(false);
+  });
+
+  it('one tap flips a chip', () => {
+    const c = toggleBlocked(DEFAULT_CONFIG, 'allowMessages');
+    expect(isBlocked(c, 'allowMessages')).toBe(false);
+    expect(isBlocked(toggleBlocked(c, 'allowMessages'), 'allowMessages')).toBe(true);
+  });
+
+  it('"important chats" is only offered while messages are blocked', () => {
+    expect(visibleBlockOptions(DEFAULT_CONFIG).map((o) => o.key)).toContain('allowConversations');
+    const open = toggleBlocked(DEFAULT_CONFIG, 'allowMessages');
+    expect(visibleBlockOptions(open).map((o) => o.key)).not.toContain('allowConversations');
   });
 });

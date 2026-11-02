@@ -60,6 +60,14 @@ object FocusStore {
     val minutes: Int,
     /** YouTube Shorts: "off", "focus" (only during focus) or "always". */
     val shorts: String,
+    // What gets through Do Not Disturb besides calls.
+    val allowMessages: Boolean,
+    val allowConversations: Boolean,
+    val allowReminders: Boolean,
+    val allowAlarms: Boolean,
+    val allowMedia: Boolean,
+    /** Hide blocked notifications completely (not just silence them) until focus ends. */
+    val hideFully: Boolean,
   )
 
   fun config(ctx: Context): Config {
@@ -80,6 +88,12 @@ object FocusStore {
       repeatCallers = p.getBoolean("repeatCallers", true),
       minutes = p.getInt("minutes", 0),
       shorts = p.getString("shorts", SHORTS_ALWAYS) ?: SHORTS_ALWAYS,
+      allowMessages = p.getBoolean("allowMessages", false),
+      allowConversations = p.getBoolean("allowConversations", false),
+      allowReminders = p.getBoolean("allowReminders", true),
+      allowAlarms = p.getBoolean("allowAlarms", true),
+      allowMedia = p.getBoolean("allowMedia", true),
+      hideFully = p.getBoolean("hideFully", true),
     )
   }
 
@@ -91,6 +105,12 @@ object FocusStore {
     .put("repeatCallers", c.repeatCallers)
     .put("minutes", c.minutes)
     .put("shorts", c.shorts)
+    .put("allowMessages", c.allowMessages)
+    .put("allowConversations", c.allowConversations)
+    .put("allowReminders", c.allowReminders)
+    .put("allowAlarms", c.allowAlarms)
+    .put("allowMedia", c.allowMedia)
+    .put("hideFully", c.hideFully)
 
   fun saveConfig(ctx: Context, json: JSONObject) {
     val e = prefs(ctx).edit()
@@ -101,6 +121,9 @@ object FocusStore {
     if (json.has("repeatCallers")) e.putBoolean("repeatCallers", json.getBoolean("repeatCallers"))
     if (json.has("minutes")) e.putInt("minutes", json.getInt("minutes"))
     if (json.has("shorts")) e.putString("shorts", json.getString("shorts"))
+    for (key in listOf("allowMessages", "allowConversations", "allowReminders", "allowAlarms", "allowMedia", "hideFully")) {
+      if (json.has(key)) e.putBoolean(key, json.getBoolean(key))
+    }
     e.apply()
     // Settings changed mid-session: apply them right away.
     if (isActive(ctx)) {
@@ -189,49 +212,75 @@ object FocusStore {
 
   private fun applySilence(ctx: Context) {
     val nm = ctx.getSystemService(NotificationManager::class.java) ?: return
-    val c = config(ctx)
-    if (!c.silence) {
-      restoreSilence(ctx)
-      return
-    }
     if (!nm.isNotificationPolicyAccessGranted) return
+    val c = config(ctx)
     val p = prefs(ctx)
     runCatching {
       if (!p.getBoolean("dndByUs", false)) {
         // Remember the user's own Do Not Disturb setup to put it back afterwards.
         val prev = nm.notificationPolicy
-        p.edit()
+        val e = p.edit()
           .putBoolean("dndByUs", true)
           .putInt("prevFilter", nm.currentInterruptionFilter)
           .putInt("prevCategories", prev.priorityCategories)
           .putInt("prevCallSenders", prev.priorityCallSenders)
           .putInt("prevMessageSenders", prev.priorityMessageSenders)
           .putInt("prevVisual", prev.suppressedVisualEffects)
-          .apply()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+          e.putInt("prevConversationSenders", prev.priorityConversationSenders)
+        }
+        e.apply()
       }
-      var categories = NotificationManager.Policy.PRIORITY_CATEGORY_CALLS
-      if (c.repeatCallers) categories = categories or NotificationManager.Policy.PRIORITY_CATEGORY_REPEAT_CALLERS
-      val senders = when (c.callers) {
-        CALLERS_CONTACTS -> NotificationManager.Policy.PRIORITY_SENDERS_CONTACTS
-        CALLERS_STARRED -> NotificationManager.Policy.PRIORITY_SENDERS_STARRED
-        else -> NotificationManager.Policy.PRIORITY_SENDERS_ANY
-      }
-      val policy = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-        categories = categories or
-          NotificationManager.Policy.PRIORITY_CATEGORY_ALARMS or
-          NotificationManager.Policy.PRIORITY_CATEGORY_MEDIA or
-          NotificationManager.Policy.PRIORITY_CATEGORY_SYSTEM
-        // Silenced notifications don't pop up over the screen either.
-        val visual = NotificationManager.Policy.SUPPRESSED_EFFECT_PEEK or
-          NotificationManager.Policy.SUPPRESSED_EFFECT_FULL_SCREEN_INTENT or
-          NotificationManager.Policy.SUPPRESSED_EFFECT_LIGHTS
-        NotificationManager.Policy(categories, senders, senders, visual)
-      } else {
-        NotificationManager.Policy(categories, senders, senders)
-      }
-      nm.notificationPolicy = policy
+      nm.notificationPolicy = policyFor(c)
       nm.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_PRIORITY)
     }
+  }
+
+  /**
+   * Do Not Disturb that lets calls through and blocks everything else except what the user
+   * chose to keep: messages, important conversations, reminders, alarms, media sound.
+   */
+  private fun policyFor(c: Config): NotificationManager.Policy {
+    var categories = NotificationManager.Policy.PRIORITY_CATEGORY_CALLS
+    if (c.repeatCallers) categories = categories or NotificationManager.Policy.PRIORITY_CATEGORY_REPEAT_CALLERS
+    if (c.allowMessages) categories = categories or NotificationManager.Policy.PRIORITY_CATEGORY_MESSAGES
+    if (c.allowReminders) {
+      categories = categories or
+        NotificationManager.Policy.PRIORITY_CATEGORY_REMINDERS or
+        NotificationManager.Policy.PRIORITY_CATEGORY_EVENTS
+    }
+    val callSenders = when (c.callers) {
+      CALLERS_CONTACTS -> NotificationManager.Policy.PRIORITY_SENDERS_CONTACTS
+      CALLERS_STARRED -> NotificationManager.Policy.PRIORITY_SENDERS_STARRED
+      else -> NotificationManager.Policy.PRIORITY_SENDERS_ANY
+    }
+    val messageSenders = NotificationManager.Policy.PRIORITY_SENDERS_ANY
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) {
+      return NotificationManager.Policy(categories, callSenders, messageSenders)
+    }
+    if (c.allowAlarms) categories = categories or NotificationManager.Policy.PRIORITY_CATEGORY_ALARMS
+    if (c.allowMedia) categories = categories or NotificationManager.Policy.PRIORITY_CATEGORY_MEDIA
+    var visual = NotificationManager.Policy.SUPPRESSED_EFFECT_PEEK or
+      NotificationManager.Policy.SUPPRESSED_EFFECT_FULL_SCREEN_INTENT or
+      NotificationManager.Policy.SUPPRESSED_EFFECT_LIGHTS
+    if (c.hideFully) {
+      // Not even an icon or a line in the shade; they all show up once focus is over.
+      visual = visual or
+        NotificationManager.Policy.SUPPRESSED_EFFECT_STATUS_BAR or
+        NotificationManager.Policy.SUPPRESSED_EFFECT_BADGE or
+        NotificationManager.Policy.SUPPRESSED_EFFECT_AMBIENT or
+        NotificationManager.Policy.SUPPRESSED_EFFECT_NOTIFICATION_LIST
+    }
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+      return NotificationManager.Policy(categories, callSenders, messageSenders, visual)
+    }
+    val conversations = if (!c.allowMessages && c.allowConversations) {
+      categories = categories or NotificationManager.Policy.PRIORITY_CATEGORY_CONVERSATIONS
+      NotificationManager.Policy.CONVERSATION_SENDERS_IMPORTANT
+    } else {
+      NotificationManager.Policy.CONVERSATION_SENDERS_NONE
+    }
+    return NotificationManager.Policy(categories, callSenders, messageSenders, visual, conversations)
   }
 
   private fun restoreSilence(ctx: Context) {
@@ -244,21 +293,21 @@ object FocusStore {
       // Android 15+ keeps an app's Do Not Disturb in its own "mode", so the user's settings were
       // never touched; older versions share one policy, which is put back as it was.
       if (Build.VERSION.SDK_INT < Build.VERSION_CODES.VANILLA_ICE_CREAM) {
-        val policy = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-          NotificationManager.Policy(
-            p.getInt("prevCategories", 0),
-            p.getInt("prevCallSenders", 0),
-            p.getInt("prevMessageSenders", 0),
-            p.getInt("prevVisual", 0),
+        val categories = p.getInt("prevCategories", 0)
+        val calls = p.getInt("prevCallSenders", 0)
+        val messages = p.getInt("prevMessageSenders", 0)
+        val visual = p.getInt("prevVisual", 0)
+        nm.notificationPolicy = when {
+          Build.VERSION.SDK_INT >= Build.VERSION_CODES.R -> NotificationManager.Policy(
+            categories,
+            calls,
+            messages,
+            visual,
+            p.getInt("prevConversationSenders", NotificationManager.Policy.CONVERSATION_SENDERS_NONE),
           )
-        } else {
-          NotificationManager.Policy(
-            p.getInt("prevCategories", 0),
-            p.getInt("prevCallSenders", 0),
-            p.getInt("prevMessageSenders", 0),
-          )
+          Build.VERSION.SDK_INT >= Build.VERSION_CODES.P -> NotificationManager.Policy(categories, calls, messages, visual)
+          else -> NotificationManager.Policy(categories, calls, messages)
         }
-        nm.notificationPolicy = policy
       }
       val prev = p.getInt("prevFilter", NotificationManager.INTERRUPTION_FILTER_ALL)
       nm.setInterruptionFilter(

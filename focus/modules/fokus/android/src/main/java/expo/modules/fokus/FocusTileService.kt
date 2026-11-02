@@ -11,12 +11,12 @@ class FocusTileService : TileService() {
   override fun onStartListening() = render()
 
   override fun onClick() {
-    if (FocusStore.listenerEnabled(this)) {
+    if (FocusStore.hasDndAccess(this) || FocusStore.listenerEnabled(this)) {
       FocusStore.toggle(this, notifyOnStop = true)
       render()
       return
     }
-    // Not set up yet: open the app, which explains how to grant notification access.
+    // Not set up yet: open the app, which explains how to grant Do Not Disturb access.
     val launch = packageManager.getLaunchIntentForPackage(packageName) ?: return
     launch.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
