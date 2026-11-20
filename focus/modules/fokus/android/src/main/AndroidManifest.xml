@@ -1,10 +1,16 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+  xmlns:tools="http://schemas.android.com/tools">
   <!-- "Тишина": turns on Do Not Disturb with calls allowed. -->
   <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
   <!-- Summary "focus is over, N notifications were hidden". -->
   <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
   <!-- Ends the focus session on time; without the grant the end may be a few minutes late. -->
   <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+
+  <!-- "Скрыть время": hides the status-bar clock. Granted once from an ADB shell (pm grant). -->
+  <uses-permission
+    android:name="android.permission.WRITE_SECURE_SETTINGS"
+    tools:ignore="ProtectedPermissions" />
 
   <!-- Lets the app list launchable apps for per-app blocking and open them from the "missed" list. -->
   <queries>
@@ -51,6 +57,20 @@
       <meta-data
         android:name="android.accessibilityservice"
         android:resource="@xml/fokus_shorts_service" />
+    </service>
+
+    <service
+      android:name="expo.modules.fokus.ClockTileService"
+      android:exported="true"
+      android:icon="@drawable/fokus_clock"
+      android:label="Время"
+      android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+      <intent-filter>
+        <action android:name="android.service.quicksettings.action.QS_TILE" />
+      </intent-filter>
+      <meta-data
+        android:name="android.service.quicksettings.TOGGLEABLE_TILE"
+        android:value="true" />
     </service>
 
     <receiver

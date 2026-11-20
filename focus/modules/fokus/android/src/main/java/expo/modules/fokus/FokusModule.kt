@@ -96,7 +96,9 @@ class FokusModule : Module() {
     }
 
     // Android 13+: the system asks "Add the Фокус tile to quick settings?".
-    AsyncFunction("requestAddTile") { promise: Promise ->
+    Function("setClockHidden") { hide: Boolean -> ClockHider.setHidden(context, hide) }
+
+    AsyncFunction("requestAddTile") { which: String, promise: Promise ->
       if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
         promise.resolve("unsupported")
         return@AsyncFunction
@@ -106,10 +108,11 @@ class FokusModule : Module() {
         promise.resolve("unsupported")
         return@AsyncFunction
       }
+      val clock = which == "clock"
       sbm.requestAddTileService(
-        ComponentName(context, FocusTileService::class.java),
-        "Фокус",
-        Icon.createWithResource(context, R.drawable.fokus_tile),
+        ComponentName(context, if (clock) ClockTileService::class.java else FocusTileService::class.java),
+        if (clock) "Время" else "Фокус",
+        Icon.createWithResource(context, if (clock) R.drawable.fokus_clock else R.drawable.fokus_tile),
         context.mainExecutor,
       ) { result ->
         promise.resolve(
@@ -136,6 +139,8 @@ class FokusModule : Module() {
       .put("sessionHidden", FocusStore.sessionHidden(ctx))
       .put("listenerEnabled", FocusStore.listenerEnabled(ctx))
       .put("accessibilityEnabled", FocusStore.accessibilityEnabled(ctx))
+      .put("canHideClock", ClockHider.canHide(ctx))
+      .put("clockHidden", ClockHider.isHidden(ctx))
       .put("shortsBlocked", FocusStore.shortsBlocked(ctx))
       .put("dndAccess", FocusStore.hasDndAccess(ctx))
       .put("exactAlarms", exact)

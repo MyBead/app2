@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Banner, Button, Card, Chip, Chips, ToggleRow } from '../components/ui';
 import {
   CALLERS,
+  CLOCK_COMMAND,
   DURATIONS,
   UNLOCK_COMMAND,
   GROUPS,
@@ -28,13 +29,14 @@ import { colors } from '../theme';
 const NOTIFICATIONS: [string, string, string] = ['уведомление', 'уведомления', 'уведомлений'];
 
 export default function FocusScreen() {
-  const { native, state, log, now, apps, loadApps, setConfig } = useFocus();
+  const { native, state, log, now, apps, loadApps, setConfig, refresh } = useFocus();
   const { config } = state;
   const [showApps, setShowApps] = useState(false);
   const [query, setQuery] = useState('');
   const [openMissed, setOpenMissed] = useState<string | null>(null);
   const [tileNote, setTileNote] = useState<string | null>(null);
   const [showUnlock, setShowUnlock] = useState(false);
+  const [clockNote, setClockNote] = useState<string | null>(null);
 
   if (!native) {
     return (
@@ -69,13 +71,29 @@ export default function FocusScreen() {
   };
 
   const addTile = async () => {
-    const r = await native.requestAddTile();
+    const r = await native.requestAddTile('focus');
     setTileNote(
       r === 'added' || r === 'already'
         ? 'Плитка «Фокус» в шторке — включайте одним касанием, не открывая приложение.'
         : r === 'declined'
           ? 'Можно добавить позже: шторка → карандаш (изменить) → перетащите «Фокус».'
           : 'Добавьте вручную: шторка → карандаш (изменить) → перетащите «Фокус».',
+    );
+  };
+
+  const toggleClock = () => {
+    const hide = !state.clockHidden;
+    const ok = native.setClockHidden(hide);
+    setClockNote(ok ? null : 'Телефон не дал изменить часы. Похоже, его прошивка не поддерживает скрытие часов.');
+    refresh();
+  };
+
+  const addClockTile = async () => {
+    const r = await native.requestAddTile('clock');
+    setClockNote(
+      r === 'added' || r === 'already'
+        ? 'Плитка «Время» в шторке — скрывайте и показывайте часы одним касанием.'
+        : 'Добавьте вручную: шторка → карандаш (изменить) → перетащите «Время».',
     );
   };
 
@@ -149,6 +167,49 @@ export default function FocusScreen() {
             <Text style={styles.small}>Новая длительность — со следующего включения.</Text>
           ) : null}
         </View>
+
+        <Card
+          title="🕐 Время"
+          hint="Отдельная кнопка: прячет часы в строке состояния (слева сверху), чтобы время не отвлекало. Работает независимо от фокуса."
+        >
+          {state.canHideClock ? (
+            <>
+              <Pressable
+                onPress={toggleClock}
+                accessibilityRole="switch"
+                accessibilityState={{ checked: state.clockHidden }}
+                style={({ pressed }) => [
+                  styles.clockButton,
+                  state.clockHidden && styles.clockButtonOn,
+                  pressed && { opacity: 0.85 },
+                ]}
+              >
+                <Text style={[styles.clockLabel, state.clockHidden && styles.clockLabelOn]}>
+                  {state.clockHidden ? '🙈 Время скрыто — показать' : '🕐 Скрыть время'}
+                </Text>
+              </Pressable>
+              {state.canAddTile ? (
+                <Button label="Добавить плитку «Время» в шторку" subtle onPress={addClockTile} />
+              ) : null}
+            </>
+          ) : (
+            <>
+              <Text style={styles.small}>
+                Один раз нужно дать разрешение через беспроводную отладку — так же, как в «Разблокировке» ниже (шаги
+                1–3), только команда другая (долгое нажатие — скопировать):
+              </Text>
+              <Text selectable style={styles.code}>
+                {CLOCK_COMMAND}
+              </Text>
+              <Text style={styles.small}>Потом вернитесь сюда — появится кнопка «Скрыть время».</Text>
+            </>
+          )}
+          {clockNote ? <Text style={styles.small}>{clockNote}</Text> : null}
+          <Text style={styles.small}>
+            Часы на рабочем столе — это виджет: его убирают долгим нажатием → «Удалить». Часы на экране блокировки
+            Android приложениям скрывать не даёт.
+          </Text>
+        </Card>
 
         <Card title="Что блокировать" hint="Одно касание — переключить. Выделенное блокируется на время фокуса.">
           <Chips>
@@ -381,6 +442,9 @@ export default function FocusScreen() {
                 <Text selectable style={styles.code}>
                   {UNLOCK_COMMAND}
                 </Text>
+                <Text style={styles.small}>
+                  Там же можно сразу выполнить команду для кнопки «Скрыть время»: {CLOCK_COMMAND}
+                </Text>
                 <Text style={styles.text}>5. Вернитесь сюда и включите доступы — переключатели станут активными:</Text>
                 <Button label="Доступ к уведомлениям" subtle onPress={() => native.openListenerSettings()} />
                 <Button
@@ -456,6 +520,16 @@ const styles = StyleSheet.create({
   missedItem: { fontSize: 14, color: colors.text, lineHeight: 19 },
   count: { color: colors.accent, fontWeight: '800' },
   link: { color: colors.accent, fontWeight: '700', fontSize: 14 },
+  clockButton: {
+    borderWidth: 2,
+    borderColor: colors.accent,
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  clockButtonOn: { backgroundColor: colors.accent },
+  clockLabel: { fontSize: 17, fontWeight: '800', color: colors.accent },
+  clockLabelOn: { color: colors.onText },
   code: {
     fontFamily: Platform.OS === 'android' ? 'monospace' : 'Menlo',
     fontSize: 14,

@@ -17,7 +17,8 @@ declare class FokusNative extends NativeModule<FokusEvents> {
   openDndSettings(): void;
   openAppSettings(): void;
   openExactAlarmSettings(): void;
-  requestAddTile(): Promise<'added' | 'already' | 'declined' | 'unsupported' | 'error'>;
+  setClockHidden(hide: boolean): boolean;
+  requestAddTile(which: 'focus' | 'clock'): Promise<'added' | 'already' | 'declined' | 'unsupported' | 'error'>;
 }
 
 export default requireOptionalNativeModule<FokusNative>('Fokus');

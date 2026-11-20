@@ -58,6 +58,9 @@ export interface FocusState {
   sessionHidden: number;
   listenerEnabled: boolean;
   accessibilityEnabled: boolean;
+  /** WRITE_SECURE_SETTINGS granted: the status-bar clock can be hidden. */
+  canHideClock: boolean;
+  clockHidden: boolean;
   shortsBlocked: number;
   dndAccess: boolean;
   exactAlarms: boolean;
@@ -128,6 +131,9 @@ export const DEFAULT_CONFIG: FocusConfig = {
 
 /** One-time unlock of Android's "restricted settings" for this app (run in an ADB shell). */
 export const UNLOCK_COMMAND = 'appops set pl.fokus.app ACCESS_RESTRICTED_SETTINGS allow';
+
+/** One-time grant that lets the app hide the status-bar clock (run in an ADB shell). */
+export const CLOCK_COMMAND = 'pm grant pl.fokus.app android.permission.WRITE_SECURE_SETTINGS';
 
 export function groupLabel(id: Group): string {
   return GROUPS.find((g) => g.id === id)?.label ?? id;
